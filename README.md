@@ -1565,6 +1565,109 @@ hystrix原来的主逻辑如何恢复
 ![img](image/consumer-hystrix-dashboard-provider-2.png)
 
 22、服务网关GateWay和Zuul
-  网关是什么
-  
+``` 
+ Cloud全家桶中有个很重要的组件就是网关，在1.x版本中都是采用的Zuul网关；
+但是在2.x版本中，zuul的升级一直跳票，SpringCloud最后自己研发了一个网关替代Zuul，那就是SpringCloud
+GateWay ，GateWay是原Zuul1.x版的替代
+```  
+ 网关是什么
     
+    GateWay是在Spring生态系之上构建的API网关服务，基于Spring5, SpringBoot2和Project Reactor等技术。
+    GateWay旨在提供一种简单而有效的方式来对API进行路由，以及提供一些强的的过滤功能，例如：熔断、限流、重试等
+ 
+ SpringCloud GateWay
+    
+    SpringCloud GateWay是SpringCloud的一个全新项目，基于Spring5.0+Spring Boot2.0和Project Reactor
+    等技术开发的网关，它旨在为微服务提供一种简单有效的统一的API路由管理方式。
+    
+    SpringCloud GateWay 作为SpringCloud 生态系统中的网关，目标是替换Zuul,子SpringCloud2.0 以上版本中，没有
+    对新版本的Zuul2.0以上最新高性能版本进行集成，仍然还是使用的Zuul1.x 非Reactor模式的老版本。而为了提升网关
+    的性能，SpringCloud GateWay是基于WebFlux框架实现的，而WebFlux框架底层则使用了高性能的Reactor模式通信框架Netty。
+    
+    Spring Cloud GateWay的目标提供统一的路由方式且基于Filter链的方式提供了网关基本的功能，例如：安全，监控/指标，和限流。
+    
+    
+  SpringCloud GateWay与Zuul的区别，在 SpringCloud Finchley正式版之前， SpringCloud推荐的网关是
+  Netflix提供的Zuul:
+    
+    1、Zuul1.x,是一个基于阻塞I/O的API GateWay
+    2、Zuul1.x 基于Servlet2.5使用阻塞架构它不支持任何长连接(如WebSocket)Zuul的设计模式和Nginx较像，每次I/O操作都是
+    从工作线程中选择一个执行，请求线程被阻塞到工作线程完成，但是差别是Nginx用C++实现，zuul用java实现，而JVM本身
+    会有第一次加载较慢的情况，使得Zuul的性能相对较差。
+    3、zuul2.x理念更先进，想基于Netty非阻塞和支持长连接，但SpringCloud目前还没有整合。Zuul2.x的性能Zuul1.x有较大提升。
+    在性能方面，根据官方提供的基准测试， SpringCloud GateWay的RPS(每秒请求数)是Zuul的1.6倍。
+    
+    4、 SpringCloud GateWay建立在Spring Framework5、Project Reactor和Springboot2之上，使用非阻塞API。
+    5、 SpringCloud GateWay还支持WebSocket，并且与Spring紧密集成拥有更好的开发体验
+    
+22.1、为什么选择SpringCloud GateWay
+  
+    1、SpringCloud中所集成的Zuul版本，采用的是Tomcat容器，使用的是传统的Servlet IO处理模型。
+    对于Servlet大家都应该知道，其生命周期，Servlet是由servlet container进行生命周期管理。
+    container启动时构造servlet对象并调用servlet init()进行初始；
+    container运行时接受请求，并为每一个请求分配一个线程(一般从线程池中获取空闲线程)然后调用service()。
+    container关闭时调用servlet destory()销毁servlet;   
+  ![img](image/servlet-container.png)
+   上述模式的缺点 
+    
+    servlet是一个简单的网络IO模型，当请求进入servlet container时，servlet container就会为其绑定
+    一个线程，在并发不高的场景下这种模型是使用的。但是一旦高并发情况下，线程梳理就会上涨，而线程资源代价是昂贵的(上下文切换，内存消费大)
+    严重影响请求的处理时间。在一些简单业务场景下，不希望为每个request分配一个线程，只需要1给或几个线程就能
+    应对极大并发的请求，这种业务场景下servlet模式没有优势。
+    
+    所有Zuul 1.x是基于servlet之上的一个阻塞式处理模型，即spring实现了处理所有request请求的一个servlet(DispatcherServlet)并由该Servlet
+    阻塞式处理。所以SpringCloud Zuul无法摆脱Servlet模型的弊端。
+    
+  GateWay模式，WebFlux是什么
+    
+    传统的Web框架，比如说：struts2,springmvc等都是基于Servlet API 与Servlet容器基础之上运行的
+    但是，在Servlet3.1之后有了异步非阻塞的支持。而WebFlux是一个典型非阻塞异步的框架，它的核心是基于Reactor
+    的相关API实现的。相对于传统的Web框架来说，它可以运行在诸如Netty,Undertow及支持Servlet3.1的容器上。
+    非阻塞式+函数式编程(Spring5必须让你使用java8)
+    
+    Spring WebFlux是Spring5.0引入的新的响应式框架，区别于Spring MVC，它不需要依赖Servlet API，它是
+    完全异步非阻塞的，并且基于Reactor来实现响应式流规范。
+    
+    
+22.2、GateWay三大核心概念
+``` 
+ Route(路由)
+ Predicate(断言)
+ Filter(过滤)
+```   
+路由
+   
+    路由是构建网关的基本模块，它由ID，目标URL，一系列的断言和过滤器组成，如果断言为true则匹配该路由
+  
+ Predicate      
+   
+     可以参考java8的java.util.function.Predicate,开发人员可以匹配HTTP请求中的所有内容(例如请求头或者请求参数)
+     如果请求与断言相匹配则进行路由
+     
+ Filter
+ 
+     指的是Spring框架中GateWayFilter的实例，使用过滤器，可以在请求被路由前或者之后对请求进行修改。  
+
+总体
+ ![img](image/spring-cloud-gateway-boot-application.png)
+
+    web请求，通过一些匹配条件，定位到真正的服务节点。并在这转发过程的前后，进行一些精细化控制。
+    predicate就是我们的匹配条件；而filter，就可以理解为一个无所不能的连接器。有了这两个元素
+    再加上目标uri，就可以实现一个具体的路由了。
+
+    
+22.3 GateWay工作流程
+
+  ![img](image/springcloud-gateway-works.png)
+    
+    客户端向SpringCloud GateWay发出请求。然后再GateWay Handler Mapping中找到与请求相匹配的路由，将其发送到Gateway
+    Web Handler。
+    
+    Handler 再通过指定的过滤器链来将请求发送到我们实际的服务执行业务逻辑，然后返回。过滤器之间用虚线分开
+    是因为过滤器可能会在发送代理请求之前("pre")或之后("post")执行业务逻辑。
+    
+    Filter再 "pre" 类型的过滤器可以做参数校验、权限校验、流量监控、日志输出、协议转换等
+    再"post"类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有非常重要的作用。
+ GateWay 的核心逻辑就是路由转发+执行过滤链
+ 
+ 22.4 创建一个模块 cloud-gateway-gateway9527来测试    
