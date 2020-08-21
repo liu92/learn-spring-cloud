@@ -1670,4 +1670,642 @@ GateWay ，GateWay是原Zuul1.x版的替代
     再"post"类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有非常重要的作用。
  GateWay 的核心逻辑就是路由转发+执行过滤链
  
- 22.4 创建一个模块 cloud-gateway-gateway9527来测试    
+ 22.4 创建一个模块 cloud-gateway-gateway9527来测试，这个模块不需要连接数据库这和编写些业务类等。
+ 只需要添加gateway的相关依赖和修改application.yml文件。 这里网关配置路由的地址是8001,所以我们要
+ 启动cloud-provider-payment8001来进行测试。
+ ``` 
+spring:
+  application:
+    name: cloud-gateway
+  cloud:
+    gateway:
+      # 多个路由
+      routes:
+        - id: payment_routh #payment_route #路由的ID,没有固定规则但要求唯一，建议配合服务名
+          uri: http://localhost:8001   # 匹配后提供服务的路由地址
+          predicates:
+            - Path=/payment/get/**    #断言，路径相匹配的进行路由, **表示通配符
+
+        - id: payment_routh2 #payment_route #路由的ID,没有固定规则但要求唯一，建议配合服务名
+          uri: http://localhost:8001   # 匹配后提供服务的路由地址
+          predicates:
+            - Path=/payment/lb/**    #断言，路径相匹配的进行路由 
+```
+ 注意再修改pom依赖时候，不能引入下面的两个依赖，并且引入的公用模块中也不能引入。不然启动会报错下面错误。
+ 报错Consider defining a bean of type 'org.springframework.http.codec.ServerCodecConfigurer' in your configuration.
+ ```
+<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!--监控-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+```
+ 再次启动网关就不会报错了。然后现在测试使用http://localhost:9527/payment/get/23可以看到能访问到原来
+ http://localhost:8001/payment/get/23 访问的数据。通过网关来访问8001的数据，如果网关路由的地址和8001中
+ 接口地址匹配 那么就能成功访问，如果不匹配则不能访问。这样就可以不暴露真实的地址，而是通过网关路由匹配地址。
+![img](image/cloud-gateway-9527.png)
+
+22.5 通过编码的方式来进行网关路由的配置 
+``` 
+官网文档
+https://cloud.spring.io/spring-cloud-static/spring-cloud-gateway/2.2.1.RELEASE/reference/html/#spring-cloud-circuitbreaker-filter-factory
+```    
+创建一个类GateWayConfig ，这个通过编码的方式来实现路由转发
+```java
+package com.learn.springcloud.config;
+
+import org.springframework.cloud.gateway.route.RouteLocator;
+import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @ClassName: GateWayConfig
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/20 14:59
+ * History:
+ * @<version> 1.0
+ */
+@Configuration
+public class GateWayConfig {
+
+    /**
+     * 配置了一个id为route-name的路由规则，
+     * 当访问地址http://localhost:9527/guonei时会自动转发到地址 http://news.baidu.com/guonei
+     * @param routeLocatorBuilder
+     * @return
+     */
+    @Bean
+    public RouteLocator customerRouteLocator(RouteLocatorBuilder routeLocatorBuilder){
+        RouteLocatorBuilder.Builder routes = routeLocatorBuilder.routes();
+        //这里的id就表示 routes中id
+        routes.route("path_route_t2",
+                //这里的guonei 就表示请求地址后的接口名
+                r->r.path("/guonei")
+                        //请求地址
+                    .uri("http://news.baidu.com/guonei")).build();
+        return routes.build();
+    }
+
+    @Bean
+    public RouteLocator customerRouteLocator2(RouteLocatorBuilder builder){
+        RouteLocatorBuilder.Builder routes = builder.routes();
+        routes.route("path_route-t2",
+                  r -> r.path("/guoji")
+                          .uri("http://news.baidu.com/guoji")).build();
+        return  routes.build();
+    }
+}
+
+```
+启动测试http://localhost:9527/guonei 可以看到这个通过网关转发到了baidu的相关页面
+![img](image/gateway-route-baidu.png)
+
+
+ 22.6 上面的方式只能访问写死的两个微服务，如果注册中心有多个微服务呢？怎么负载均衡得去访问呢？
+ 这里就需要修改配置文件，从注册中心选取微服务进行路由转发。修改yml配置，让其从注册中动态创建路由的功能，
+ 利用微服务进行路由。这使用8001和8002两个微服务实例来进行测试切换
+ ``` 
+spring:
+application:
+  name: cloud-gateway
+cloud:
+  gateway:
+    discovery:
+      locator:
+        enabled: true #开启从注册中心动态创建路由的功能，利用微服务名进行路由
+    # 多个路由
+    routes:
+      #payment_route #路由的ID,没有固定规则但要求唯一，建议配合服务名
+      - id: payment_route1
+        # 匹配后提供服务的路由地址
+        # uri: http://localhost:8001
+        #将写死的地址 换成服务名
+          uri: lb://cloud-payment-service
+        predicates:
+          #断言，路径相匹配的进行路由, **表示通配符
+          - Path=/payment/get/**
+      #payment_route #路由的ID,没有固定规则但要求唯一，建议配合服务名
+      - id: payment_route2
+        # 匹配后提供服务的路由地址
+        # uri: http://localhost:8001
+          #将写死的地址 换成服务名
+          uri: lb://cloud-payment-service
+        predicates:
+          #断言，路径相匹配的进行路由
+          - Path=/payment/lb/**
+```
+测试 http://localhost:9527/payment/lb 可以看到这个能切换到不同的端口。通过gateway来路由到不同的服务实例上
+![img](image/gateway-payment-lb.png)
+![img](image/gateway-payment-lb-02.png)
+
+
+我们在启动网关9527的时候可以看到控制台打印了很多信息，这个类是RoutePredicateFactory，它有很多种类型，我们这里只是使用了Path
+![img](image/gateway-start-log.png)
+
+这里在yml添加配置，在predicates种使用After，指定时间在什么时候才能访问
+``` 
+- After=2020-08-20T16:17:02.118+08:00[Asia/Shanghai]
+```
+ 如果这个这个时间没有到那么访问就会报错
+![img](image/gateway-predicates-after.png)
+
+添加Cookie测试，使用Cookie的时候 用cmd 来使用curl命令来测试，首先测试没有添加cookie的情况，如下的图可知
+如果没加上Cookie访问就会报错。
+![img](image/gateway-predicates-cookie-curl-test1.png)
+当加上Cookie 再测试可以看到，访问成功。
+![img](image/gateway-predicates-cookie-curl-test2.png)
+测试Header测试
+``` 
+- Header=X-Request-Id, \d+    #- Header=X-Request-Id, \d+ #请求头要有X-Request-Id属性，并且值为正数
+```
+测试如果是正数那么就能正确返回，如果是负数则访问时报错。
+![img](image/gateway-predicates-header-curl-test1.png)
+
+
+ 22.7 GateWay的Filter, 一般自定义全局GlobalFilter， 这个要实现GlobalFilter,ordered这两个接口。
+ 过滤器可以进行全局日志记录，统一网关鉴权等 ，编写一个全局过滤器MyLogGateWayFilter。
+ ```java
+package com.learn.springcloud.filter;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.core.Ordered;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+
+/**
+ * @ClassName: MyLogGateWayFilter
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/20 16:49
+ * History:
+ * @<version> 1.0
+ */
+@Component
+@Slf4j
+public class MyLogGateWayFilter implements GlobalFilter, Ordered {
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        ServerHttpRequest request = exchange.getRequest();
+        String uName = request.getQueryParams().getFirst("uName");
+        if(null == uName){
+           log.info("*********用户名为null,非法用户o(╥﹏╥)o");
+           exchange.getResponse().setStatusCode(HttpStatus.NOT_ACCEPTABLE);
+           return exchange.getResponse().setComplete();
+        }
+        return chain.filter(exchange);
+    }
+
+    @Override
+    public int getOrder() {
+        return 0;
+    }
+}
+```
+在加入uName参数的情况下测试http://localhost:9527/payment/lb?uName=2234，可以看到能测试成功
+![img](image/gateway-myfilter-test1.png)
+如果没有加入参数或者参数名不正确,那么访问的时间就不能访问到。
+![img](image/gateway-myfilter-error-paramter-test1.png)
+
+
+23 Spring Cloud Config (服务配置中心)
+``` 
+分布式系统面临的问题：随着项目模块越来越多，那么对应的每一个工程就会有一个yml配置 使项目膨胀，东西多了就要
+统一的管理。比如在只要几个多个模块加入了数据连接配置，那么这样去修改还行，但是当有N多个项目都加入了数据库连接配置
+那么这个时怎么去修改？ 所以需要一个统一的配置，能够一次修改处处生效。 这样就能减轻配置压力，提升管理效率。
+
+微服务意味着要将单体应用中的业务拆分成一个个字服务，每个服务的粒度相对较小，因此系统中会出现大量的服务。由于每个
+服务都需要必要的配置信息才能运行，所以一套集中式的、动态的配置管理设施是必不可少的
+Spring Cloud提供了ConfigServer来解决这个问题。
+```
+23.1 Spring Cloud Config 是什么
+``` 
+SpringCloud Coonfig为微服务架构中的微服务提供集中化的外部配置支持，配置服务器为各个不同微服务应用的所以环境提供了
+一个中心化的外部配置。
+```
+23.2 Spring Cloud Config 能做什么
+``` 
+ 1、集中管理配置文件
+ 2、不同环境不同配置，动态化的配置更新，分环境部署比如dev/test/prod/beta/release
+ 3、运行期间动态调整配置，不再需要在每个服务部署的机器上编写配置文件，服务会像配置中心统一拉取配置集自己的信息
+ 4、当配置发送变动时，服务不需要重启即可感知到配置的变化并应用新的的配置
+ 5、将配置信息以REST接口的形式暴露
+```
+23.3 Spring Cloud Config 服务端配置与测试
+ 创建一个模块cloud-config-center-3344来测试全局配置。首先修改pom文件，然后在application.yml中指定github上
+ 的中心配置文件。
+``` 
+server:
+  port: 3344
+
+spring:
+  application:
+    name: cloud-config-center #注册进Eureka服务器的微服务名
+  cloud:
+   config:
+     server:
+       git:
+         uri: https://github.com/liu92/spring-cloud-config #github上面的git仓库名字
+         search-paths:
+           - springcloud-config
+     #读取分支
+     label: master
+eureka:
+  instance:
+    hostname: cloud-config-center3344
+  client:
+    service-url:
+      #集群版
+#      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
+      #单机版
+       defaultZone: http://eureka7001.com:7001/eureka/
+#      defaultZone: http://localhost:7001/eureka/
+
+```
+在启动类中加入@EnableConfigServer配置，然后启动访问http://localhost:3344/master/config-dev.yml
+可以看到 ,注意在中心配置文件中要注意空格。
+![img](image/spring-cloud-config-3344.png)
+推荐的配置/{label}/{name}-{profile}.yml
+``` 
+label:表示分支
+name：表示名称
+profile:表示是那个环境
+```
+
+23.4 Spring Cloud Config 客户端配置与测试,新建客户端配置cloud-config-client-3355,这里会使用
+bootstrap.yml配置文件
+``` 
+application.yml 是用户级的资源配置项
+bootstrap.yml   是系统级的，优先级更高
+
+Spring Cloud会创建一个 "Bootstrap Context",作为Spring应用的'Application Context'的父上下文。初始化的时候，
+"Bootstrap Context"负责从外部源加载配置属性并解析配置。这两个上下文共享一个从外部获取的'Environment'。
+
+"Bootstrap"属性有高优先级，默认情况下，它们不会被本地配置覆盖。"Bootstrap Context"和'Application Context'
+有着不同的约定，所以新增一个'bootstrap.yml'文件，保证'Bootstrap Context'和'Application Context'配置的分离。
+
+要将Client模块下的application.yml文件改为bootstrap.yml这是关键，因为bootstrap.yml是比application.yml
+先加载的。
+```
+
+
+23.5 Spring Cloud Config 客户端之动态刷新
+``` 
+在中心配置修改了文件之后，服务端立即生效，但是客户端没生效。那么为了避免每次更新配置都要重启客户端3355
+就需要进行 客户端动态刷新。
+```
+首先修改3355模块，加入actuator监控依赖，修改yml配置，暴露监控端口
+``` 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+修改ConfigClientController，加入@RefreshScope注解 来实现刷新
+```java
+package com.learn.springcloud.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @ClassName: ConfigClientController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/20 22:46
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+public class ConfigClientController {
+
+    /**
+     * 这里获取的是中心配置 中的配置信息
+     */
+    @Value("${config.info}")
+    private String configInfo;
+
+    @GetMapping("/configInfo")
+    public String getConfigInfo(){
+        return configInfo;
+    }
+}
+
+```
+测试访问http://localhost:3355/configInfo，然后根据bootstrap.yml中的配置，去找3344中的github配置。
+![img](image/spring-cloud-config-3355.png)
+
+
+在修改中心配置后，3344可以立即生效
+![img](image/spring-cloud-config-3344-2.png)
+但是3355 已经加上了@RefreshScope注解，并且配置文件中也修改了还是没有生效。
+![img](image/spring-cloud-config-3355-2.png)
+那么这样应该怎么处理？这就需要运维人员发送POST请求刷新3355。 需要执行下面的命令来刷新，如果不加上post默认就是get请求。
+``` 
+curl -X POST "http://localhost:3355/actuator/refresh"
+```
+使用上面命令刷新
+![img](image/spring-cloud-config-3355-curl-post.png)
+
+再次刷新http://localhost:3355/configInfo页面，可以看到已经3355也已经刷新了。这样就可以避免去重启3355服务了。
+![img](image/spring-cloud-config-3355-3.png)
+
+如果多个微服务客户端，那么每个都需要执行一次post刷新操作，可否有广播的方式，一次通知，处处生效？进行精确的通知？
+现在还不能实现，所以有了消息总线来处理。
+
+23、Spring Cloud Bus消息总线是什么？
+``` 
+对上面的加深和扩充，分布式自动刷新配置功能，Spring Cloud Bus 配合 Spring Cloud Config使用可以实现配置的动态
+刷新。
+
+Bus支持两种消息代理：RabbitMQ和Kafka。
+```
+Spring Cloud Bus 是用来将分布式系统的节点与轻量级消息系统链接起来的框架，它整合了java的事件处理机制和消息
+中间件的功能。
+23.1 能干什么
+``` 
+Spring Cloud Bus能管理和传播分布式系统间的消息，就像一个分布式执行器，可用于广播状态更改、事件推送等，也可以
+当作微服务间的通信通道。
+```
+什么是总线
+``` 
+在微服务架构的系统中，通常会使用轻量级的消息代理来构建一个共用的消息主题，并让系统中所有微服务实例都连接上来。
+由于该主题中产生的消息会被所有实例监听和消费，所以称它为消息总线。在总线上的各个实例，都可以方便地广播一些需要
+让其它连接在该主题上的实例都知道的消息。
+
+基本原理：
+ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个服务刷新数据的时候，它会把这个消息放到Topic
+中，这样其它监听同一Topic的服务就能得到通知，然后去更新自身的配置。
+```
+23.2 安装erlang 和rabbitMq 
+``` 
+在RabbitMQ的sbin目录中，输入命令rabbitmq-plugins enable rabbitmq_management 这样就可以添加可视化插件了
+```
+23.3 Spring Cloud Bus 动态刷新全局广播
+``` 
+有两种方案：
+ 1、利用消息总线触发一个客户端/bus/refresh,而刷新所有客户端的配置
+ 2、利用消息总线触发一个服务端ConfigServer的/bus/refresh端点，而刷新所有客户端的配置
+ 显然方案二更合适。
+
+方案一不合适的原因如下：
+打破了微服务的职责单一性，因为微服务本身是业务模块，它本不应该承担配置刷新的职责。
+破坏了微服务各节点的对等性。
+```
+23.4 创建一个模块cloud-config-client-3366，然后修改pom和 application.yml文件。这个和3355一起配合测试
+消息总线的广播方式。 修改3344配置中心，添加RabbitMQ相关依赖和 添加RabbitMQ服务地址。在其它3355和3366也添加
+消息总线RabbitMQ支持。 
+
+23.5 首先启动eureka7001、cloud-config-center-3344、cloud-config-client-3355、cloud-config-client-3366。
+然后访问http://config-3344.com:3344/master/config-dev.yml 这个配置还没有修改。那么接下来对其进行修改。
+将version修改为3之后，再次访问http://config-3344.com:3344/master/config-dev.yml 可以看到已经变化了。
+但是http://localhost:3355/configInfo 和 
+![img](image/cloud-config-info-3355-3.png)
+ http://localhost:3366/configInfo
+![img](image/cloud-config-info-3366-3.png)
+没有发生变化，下面使用curl发生post请求，来测试刷新
+
+    .测试发送curl -X POST "http://localhost:3344/actuator/bus-refresh" 来刷新
+    这样就可以做的一次发送，处处生效
+ 执行命令之后，再次访问可以看到已经刷新为最新的配置了
+![img](image/cloud-config-info-refresh-3355.png) 
+
+![img](image/cloud-config-info-refresh-3366.png) 
+
+在RabbitMQ中可以看到这个exchange中有SpringCloud Bus,这个其实就是一个topic 
+![img](image/spring-cloud-bus-topic.png) 
+
+
+23.6 进行定点通知,如果命令 curl -X POST "http://localhost:3344/actuator/bus-refresh" 不指定通知谁
+那么就是全局的通知，如果指定了那么就是 精确通知。下面的添加config-client:3355就精确通知。
+    
+    
+    curl -X POST "http://localhost:3344/actuator/bus-refresh/config-client:3355"
+    就是在后面指定微服务名称和端口号
+
+
+24、Spring Cloud Stream 消息驱动
+
+``` 
+如果在不同系统中使用了不同的消息中间件，那么在这种情况下，就会存在很多问题，比如：切换、维护、开发
+每一个消息中间件都需要了解，那这样就会消耗很多时间。 有没有一种技术可以让我们不在关注具体MQ的细节，我们
+只要用一种适配绑定的方式，自动的给我们在各种MQ内切换。
+```
+
+24.1、 Spring Cloud Stream是什么
+``` 
+ 官方定义Spring Cloud Stream 是一个构建消息驱动微服务的框架。
+ 应用程序通过inpus或者outpust来与Spring Cloud Stream中的binder对象交互。通过我们配置类binding(绑定)，
+而Spring Cloud Stream的binder对象负责与消息中间件交互。
+ 通过使用Spring Integration来连接消息代理中间件以实现消息事件驱动。
+Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化的自动化配置实现，引用了发布-订阅、消费者、分区
+的三个核心概念。
+ 
+
+通俗的说：屏蔽底层消息中间件的差异，降低切换成本，统一消息的编程模型。
+```
+
+24.2、 设计思想
+``` 
+ 在没有引入之前有什么问题，和引入之后有什么问题，对其原有的有没有造成影响。
+
+ 
+ 标准MQ: 生产者/消费者之间靠消息媒介传递消息内容
+        消息必须走特定的通道------消息通道MessageChannel
+        消息通道里的消息如何被消费呢？谁负责收发处理
+
+ 为什么使用Spring Cloud Stream：
+  比方说我们用到了RabbitMQ和Kafka,由于这两个消息中间件的架构不同，就像RabbitMQ有exchange,kafka有Topic
+和Partitions分区。
+  这些中间件的差异性导致我们实际项目开发给我们造成了一定的困扰，我们如果用来两个消息队列的其中一种，后面的业务
+需求，我们想往另外一种消息队列进行迁移，这时候无疑就是一个灾难性的，一大堆东西都要重新推倒重新做，因为它跟我们的
+系统耦合了，这个时候Spring Cloud Stream给我们提供了一种解耦合的方式。
+
+  在没有绑定器这个概念的情况下，我们的SpringBoot应用要直接与消息中间件进行消息交互的时候，由于各消息中间件
+构建的初衷不同，它们的实现细节上会有较大的差异性。
+  通过定义绑定器作为中间件，完美地实现了应用程序与消息中间件细节之间的隔离。
+  通过向应用程序暴露统一的Channel通道，使得应用程序不需要再考虑各种不同的消息中间件实现。
+
+ 通过定义绑定器Binder作为中间层，实现了应用程序与消息中间件细节之间的隔离。
+  
+```
+
+24.3、 Binder 
+``` 
+ INPUT对应于消费者
+ OUTPUT对应于生产者
+```
+ stream中的消息通信方式遵循了发布-订阅模式
+
+24.4、Spring Cloud Stream标准流程套路
+   
+    1、Binder 很方便的连接中间件，屏蔽差异
+    2、Channel  通道，是队列Queue的一种抽象，在消息通讯系统中就是实现存储和转发的媒介，通过Channel对队列进行配置。
+    3、Source和Sink 简单的可理解为参照对象是Spring Cloud Stream自身，从Stream发布消息就是输出，接受消息就是输入。
+![img](image/spring-cloud-stream-application.png) 
+
+![img](image/spring-cloud-stream.png) 
+
+24.5、新建3个子模块来进行测试
+    
+    cloud-stream-rabbitmq-provider8801,作为生产者进行发消息模块
+    cloud-stream-rabbitmq-consumer8802,作为消息接收模块
+    cloud-stream-rabbitmq-consumer8803, 作为消息接收模块
+    
+24.6、消息驱动之生产者 cloud-stream-rabbitmq-provider8801。这里要添加stream-rabbitmq的依赖。
+然后修改yml文件绑定 rabbitmq地址和通道来绑定交互接名称，创建一个接口来发送消息，然后实现这个接口
+```java
+package com.learn.springcloud.service.impl;
+
+import com.learn.springcloud.service.IMessageProvider;
+import org.springframework.cloud.stream.annotation.EnableBinding;
+import org.springframework.cloud.stream.messaging.Source;
+import org.springframework.integration.support.MessageBuilder;
+import org.springframework.messaging.MessageChannel;
+
+import javax.annotation.Resource;
+import java.util.UUID;
+
+/**
+ * @ClassName: MessageProviderImpl
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/21 16:15
+ * History:
+ * @<version> 1.0
+ *
+ * @EnableBinding 可以理解为我们要定义一个消息生产者的发送管道
+ */
+@EnableBinding(Source.class) //定义消息的推送管道
+public class MessageProviderImpl implements IMessageProvider {
+
+    /**
+     * //消息发送管道
+     */
+    @Resource
+    private MessageChannel output;
+
+
+    @Override
+    public String send() {
+        String serial = UUID.randomUUID().toString();
+        output.send(MessageBuilder.withPayload(serial).build());
+        System.out.println("**********serial: " + serial);
+        return null;
+    }
+}
+```
+然后创建SendMessageController控制层，然后启动访问这个里面的接口看看是否将消息发送到rabbitmq中。
+http://localhost:8801/sendMessage 可以看到rabbitMQ中已经创建了一个studyExchange交互机。
+![img](image/spring-cloud-stream-studyexchange.png) 
+在RabbitMQ中也可以看到消息已经进入了RabbitMQ中
+![img](image/spring-cloud-stream-rabbitmq-message.png) 
+
+
+24.7、消息驱动消费者，创建模块cloud-stream-rabbitmq-consumer8802模块，然后添加依赖，修改application.yml
+中的配置，消费端需要接收 所以这边对应是input。这里将output改为input。
+``` 
+spring:
+  application:
+    name: cloud-stream-consumer
+  cloud:
+    stream:
+      binders: # 在此处配置要绑定的rabbitMQ的服务信息
+        defaultRabbit: # 表示定义的名称，用于binding的整合
+          type: rabbit # 消息中间件类型
+          environment: # 设置rabbitMQ的相关环境配置
+            spring:
+              rabbitmq:
+                host: localhost
+                port: 5672
+                username: guest
+                password: guest
+      bindings: # 服务的整合处理
+        input: # 这个名字是一个通道的名称
+          destination: studyExchange # 表示要使用的exchange名称定义
+          content-type: application/json # 设置消息类型，本次为json，文本则设为text/plain
+          binder: defaultRabbit # 设置要绑定的消息服务的具体设置
+```
+创建一个监听，用来监听消费添加 @EnableBinding(Sink.class) 来绑定sink。 这个上的理论中有source和 sink。
+```java
+package com.learn.springcloud.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.stream.annotation.EnableBinding;
+import org.springframework.cloud.stream.annotation.StreamListener;
+import org.springframework.cloud.stream.messaging.Sink;
+import org.springframework.messaging.Message;
+import org.springframework.stereotype.Component;
+
+/**
+ * @ClassName: ReceiveMessageListenerController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/21 17:27
+ * History:
+ * @<version> 1.0
+ */
+@Component
+@EnableBinding(Sink.class)
+public class ReceiveMessageListenerController {
+
+    @Value("${server.port}")
+    private String serverPort;
+
+    /**
+     *  @StreamListener(Sink.INPUT) 消息接收，指定通道
+     *  监听的是Sink.INPUT 输入源
+     * @param message
+     */
+    @StreamListener(Sink.INPUT)
+    public void input(Message<String> message){
+        System.out.println("消费者1号，----->接收到的消息："+
+                message.getPayload() +"\t port:" + serverPort);
+    }
+}
+
+```
+启动8802然后 再次请求http://localhost:8801/sendMessage。 可以看到消息生产者发送了消息
+![img](image/send-message-8801.png) 
+在消费者端可以看到8802接收到了消息
+![img](image/receive-message-8802.png) 
+
+
+24.8分组消费与持久化,消息存在重复消费问题。
+``` 
+ 比如在如下场景中，订单系统我们做集群部署，都会从RabbitMQ中获取订单信息，那如果一个订单同时被两个服务获取到，
+那么就会造成数据错误，我们要避免这种情况。这时我们就可以使用Stream中消息分组来解决。
+
+ 注意在Stream中处于同一个group中的多个消费者是竞争关系，就能够保证消息只会被其中一个应用消费一次。
+不同组是可以前面消费的(重复消费)？。
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
