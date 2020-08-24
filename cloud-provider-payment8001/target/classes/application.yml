@@ -9,7 +9,7 @@ spring:
   sleuth:
     sampler:
       #采样取值介于 0到1之间，1则表示全部收集
-      probability: 1
+     probability: 1
   datasource:
     # 当前数据源操作类型
     type: com.alibaba.druid.pool.DruidDataSource
@@ -34,9 +34,9 @@ eureka:
     fetch-registry: true
     service-url:
       #集群版
-      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
+#      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
       #单机版
-#      defaultZone: http://eureka7001.com:7001/eureka/
+      defaultZone: http://eureka7001.com:7001/eureka/
 #      defaultZone: http://localhost:7001/eureka/
   instance:
     instance-id: payment8001

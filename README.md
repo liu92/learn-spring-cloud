@@ -2240,6 +2240,7 @@ spring:
           binder: defaultRabbit # 设置要绑定的消息服务的具体设置
 ```
 创建一个监听，用来监听消费添加 @EnableBinding(Sink.class) 来绑定sink。 这个上的理论中有source和 sink。
+这里要注意和以前controller不同。这里ReceiveMessageListenerController是一个组件。
 ```java
 package com.learn.springcloud.controller;
 
@@ -2295,16 +2296,519 @@ public class ReceiveMessageListenerController {
 不同组是可以前面消费的(重复消费)？。
 ```
 
+24.9 stream中使用group解决重复消费
+```
+故障现象：重复消费
+导致原因：默认分组group是不同的，组流水号不一样，被认为不同组，可以消费
+
+自定义配置分组，自定义配置分为同一组，解决重复消费问题。
+```
+将8802和8803中的配置文件添加group，并且这个group是相同的。那么这样就可以避免消息被重复消费问题。
+启动测试http://localhost:8801/sendMessage 来发送消息，发送6条消息。
+![img](image/send-message-8801-1.png) 
+然后查看看8802 
+![img](image/receive-message-8802-2.png) 
+和8803 各自接收到了3条消息。这样就不会造成每个接收者都接收了全部消息，而使消息重复消费问题。
+![img](image/receive-message-8803-2.png) 
+
+24.10 stream之消息持久化
+``` 
+如果将8802中的分组去掉，保留8803中group配置，那么再次使用8801发送消息时，8802重启之后是不能获取
+8801已经发送了的消息的。这样就就造成了消息的丢失。但是如果重启8803 这个却可以接收到8801已经发送到
+MQ中的消息。这样也不会使消息丢失的问题出现。
+```
+
+25、Sleuth 分布式链路追踪
+  1、为什么会出现这种技术
+  
+     在微服务框架中，一个客户端发起的请求在后端系统中会经过多个不同的服务节点调用来协同产生最后的请求结果，
+     每一个前端请求都会形成一条复杂的分布式服务调用链路，链路中的任何一环出现高延迟或错误都会引起整个请求
+     最后的失败。  
+ 下载zipkin, 只需要下载jar后，然后本地使用java -jar 启动zipkin就可以了，然后访问http://localhost:9411/zipkin/
+ 就可以看到zipkin的web操作界面了
+ ![img](image/zipkin-start.png)
+
+ ``` 
+https://dl.bintray.com/openzipkin/maven/io/zipkin/java/zipkin-server/2.12.9/ 
+``` 
+![img](image/zipkin-request.png)
+
+简化版原理
+![img](image/zipkin-request-1.png)
+
+``` 
+Trace:类似于树结构的Span集合，表示一条调用链路，存在唯一标识
+span:标识调用链路来源，通俗的理解span就是一次请求信息
+```
+
+25.1、在cloud-provider-payment8001中添加sleuth依赖,然后在application.yml中设置zipkin监控地址，
+在controller中添加方法，来测试请求链路
+``` 
+   /**
+     * 链路跟踪
+     *
+     * @return
+     */
+    @GetMapping(value = "/payment/zipkin")
+    public String paymentZipkin() {
+        return "hi,i'am paymentZipkin server fall back,welcome to atguigu,O(∩_∩)O哈哈~";
+    }
+```
+再去修改cloud-consumer-order80,统一添加sleuth依赖也修改yml文件。也同样在controller中添加测试方法
+``` 
+  /**
+     * 链路跟踪 zipkin+sleuth
+     * http://localhost/consumer/payment/zipkin
+     *
+     * @return
+     */
+    @GetMapping("/consumer/payment/zipkin")
+    public String paymentZipkin() {
+        return restTemplate.getForObject("http://localhost:8081/payment/zipkin/", String.class);
+    }
+```    
+使用80调用8001,这样就有调用链路了。
+![img](image/provider-consumer-zipkin-80.png)
+进入zipkin中可以看到80调用8001的全部链路了。
+![img](image/consumer80-transfer-provider8001-zipkin.png)
 
 
+26、Spring Cloud Alibaba 入门
+``` 
+Spring Cloud Alibaba 致力于提供微服务开发的一站式解决方案。此项目包含开发分布式应用服务的必需组件，
+方便开发者通过 Spring Cloud 编程模型轻松使用这些组件来开发分布式应用服务。
+
+依托 Spring Cloud Alibaba，您只需要添加一些注解和少量配置，就可以将 Spring Cloud 
+应用接入阿里分布式应用解决方案，通过阿里中间件来迅速搭建分布式应用系统。
 
 
+```
+
+26.1、Spring Cloud Alibaba 能做什么
+``` 
+服务限流降级：默认支持Servlet、Feign、RestTemplate、Dubbo和RocketMQ限流降级功能的接入，可以在运行时通过
+控制台实时修改限流降级规则，还支持查看限流降级Metrics监控。
+服务注册与发现：适配Spring Cloud 服务注册与发现标准，默认基础了Ribbon的支持。
+分布式配置关联：支持分布式系统中的外部化配置，配置更改时自动刷新。
+消息驱动能力：基于Spring Cloud Stream 为微服务应用构建消息驱动能力。
+阿里云对象存储：阿里云提供的海里、安全、低成本、高可靠的云存储服务。支持在任何应用、任何时间、任何地点存储和
+访问任意类型的数据。
+分布式任务调度：提供秒级、精准、高可靠、高可用的定时(基于Cron表达式)任务调度服务。同时提供分布式的任务执行模型，
+如网格任务。网格任务支持海量子任务均匀分配到所有Worker（schedulerx-client）上执行。
+```
 
 
+26.2、 Nacos 服务注册和配置中心
+``` 
+为什么叫nacos:前四个字母分别是Naming和Configuration的前两个字母，最后的s为Service。
+```
+26.2、 Nacos 是什么
+``` 
+一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
+Nacos:Dynamic Naming and Configuration Service
+Nacos就是注册中心+配置中心的组合
+```
+下载安装nacos,这里使用的是1.1.4版本，在windwos下载文件后解压，双击startup.cmd就可以了。
+访问localhost:8848/nacos，就可以看到界面了，默认密码是nacos
+![img](image/nacos-start-1.png)
+
+26.3 创建新的模块，使用Spring Cloud Alibaba。模块为cloudalibaba-provider-payment9001。
+创建之后引入spring cloud alibaba 依赖，然后修改配置文件，创建启动类PaymentMain9001 这里就不需要
+加入eureka的注解了，然后创建一个PaymentController来进行测试
+```java
+package com.learn.springcloud.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @ClassName: PaymentController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/22 22:53
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+public class PaymentController {
+    @Value("${server.port}")
+    private String serverPort;
+
+    @GetMapping("/payment/nacos/{id}")
+    public String getPayment(@PathVariable("id") Integer id){
+        return "nacos register, serverport=" + serverPort + "\t id:" + id;
+    }
+}
+
+```
+启动主启动类，进入nacos中可以看到这个微服务已经注册到nacos中去了。
+![img](image/payment-nacos-9001.png)
+
+26.4 创建新的模块，模块为cloudalibaba-provider-payment9002。同样的加入依赖，只是修改一下配置文件中的端口
+号就可以了。启动主启动类后在nacos中就可以看到 同一个微服务名中 有两个实例。
+![img](image/provider-nacos-2.png)
+
+26.5 创建服务消费者cloudalibaba-consumer-nacos-order83，修改pom文件和yml配置文件。然后创建主启动类和
+controller类来调用服务提供的接口。 注意这里没有向以前那样声明一个变量来指定服务提供者，而在在配置中配置了
+服务提供者的名字，这样方便修改。 下面的图可以看到服务消费者已经注册到了nacos中去了
+![img](image/consumer-nacos-01.png)
+nacos因为集成了ribbon所以它能支持负载均衡。测试http://localhost:83/consumer/payment/nacos/23。
+可以看到会在9001和9002之间进行负载均衡的调用。
+![img](image/consumer-payment-nacos-02.png)
+
+nacos和其它注册中心比较
+![img](image/nacos-compare-other.png)
+
+26.6 nacos支持AP和CP模式的切换
+``` 
+C是所有节点在同一时间看到的数据是一致的；而A的定义是所有的请求都会收到响应。
+何时选择用何种模式？
+ 一般来说 如果不需要存储服务级别的信息且服务实例时通过nacos-client注册，并能够保证心跳上报，那么就可以选择
+AP模式。当前主流的服务如Spring Cloud 和 Dubbo服务，都是适用于AP模式，AP模式为了服务的可能性而减弱了一致性，
+因此AP模式下支持注册临时实例。
+
+ 如果需要在服务级别编辑或者存储配置信息，那么CP是必须，K8S服务和DNS服务测适用于CP模式。
+CP模式下则支持注册持久化实例，此时则是以Raft协议为集群运行模式，该模式下注册实例之前必须先注册服务，如果服务
+不存在，则会返回错误。
+
+ 切换
+  curl -X PUT '$NACOS_SERVER:8848/nacos/v1/ns/operator/switches?entry=serverModer&value=CP'
+```
 
 
+27、 nacos作为服务配置中心，创建模块cloudalibaba-config-nacos-client3377，这里有两个配置一个
+bootstrap.yml 一个是application.yml 文件。nacos和SpringCloud-config一样，在项目初始时，要保证先从
+配置中心进行配置拉取，拉取配置之后，才能保证项目的正常启动。配置的优先级是bootstrap高于application。
+创建ConfigClientController来测试
+```java
+package com.learn.springcloud.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @ClassName: ConfigClientController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/23 9:30
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+@RefreshScope // 支持nacos的动态刷新
+public class ConfigClientController {
+
+    @Value("${config.info}")
+    private String configInfo;
+
+    @GetMapping("/config/info")
+    public String getConfigInfo(){
+        return configInfo;
+    }
+}
+```
+在配置文件的规则要和nacos中规则对应。
+``` 
+# 官网配置 匹配规则
+#  ${spring.application.name}-${spring.profile.active}.${spring.cloud.nacos.config.file-extension}
+#   nacos-config-client-dev.yml
+```
+![img](image/nacos-config-11.png)
+规则说明
+![img](image/nacos-config-009.png)
+现在启动3377, 使用http://localhost:3377/config/info 来查看配置信息
+![img](image/nacos-config-info-1.png)
+如果修改了配置中心的文件，那么也能立即刷新
+![img](image/nacos-config-info-2.png)
 
 
+27.1、nacos多环境项目管理，使用Namespace, Group ，DataID这三个来区分。
+![img](image/nacos-namespace-group-service.png) 
+    
+    最外层的namespace是可以用于区分部署环境的，Group和DataID逻辑上区分两个目标对象。
+    
+    默认情况：
+    Namespace=public, Group=DEFAULT_GROUP,默认cluster是DEFAULT
+    Nacos默认的命名空间是public,Namespace主要用来实现隔离。
+    比方说我们现在有三个环境:开发、测试、生产环境，我们就可以创建三个Namespace，不同的Namespace之间是隔离的
+    
+    Group模式是DEFAULT_GROUP，Group可以把不同的微服务划分到同一个分组里面去
+    Service就是微服务；一个Service可以保护多个Cluster(集群)，Nacos默认Cluster是DEFAULT，Cluster是
+    指定微服务的一个虚拟划分。比如说为了容灾，将service微服务分别部署在了杭州机房和广州机房，这时可以给
+    杭州机房的Service微服务起一个集群名称(HZ)，给广州机房的Service微服务其一个集群名称(GZ)，还可以尽量
+    让同一个机房的微服务互相调用，以提升性能。
+
+    
+27.2、Nacos之DataID配置
+``` 
+ 指定spring.profile.active和配置文件的DataID来使不同环境下读取不同的配置
+ 默认空间+默认分组+新建dev和test两个DataID。
+ 通过spring.profile.active属性就能进行多环境下配置文件的读取。
+```
+在nacos中添加一个配置，nacos-config-client-test.yaml，然后子啊3377的application.yml中修改active
+指定到不同的环境。这样就能进行不同环境的切换。
+![img](image/nacos-config-test-01.png) 
+重启3377，然后访问http://localhost:3377/config/info 就可以看到这个已经切换到了test环境了。
+![img](image/nacos-config-test-02.png) 
+
+
+27.3、Nacos之Group分组配置。在nacos中创建配置，然后使用相同的Data ID, 但是分组却不一样
+![img](image/nacos-config-group-01.png) 
+然后修改项目的配置文件，添加group属性，然后指定是哪一个分组。
+http://localhost:3377/config/info 访问测试
+![img](image/nacos-config-group-02.png) 
+
+
+27.4、namespace 命名空间，默认的命名空间是public。这里创建dev和test两个命名空间
+![img](image/nacos-namespace-01.png) 
+然后在bootstrap中添加namespace，指定刚刚创建的环境。在dev命名空间下分不同的组创建配置。
+![img](image/nacos-namespace-dev-group-01.png) 
+重启测试，http://localhost:3377/config/info 可以看到访问的是dev命名空间下的DEV_GROUP配置信息。
+nacos-namespace-dev-001.png
+
+
+27.5、nacos集群和持久化配置
+``` 
+默认Nacos使用嵌入式数据库实现数据的存储。所以，如果启动多个默认配置的Nacos节点，数据存储是存在一致性问题的。
+为了解决这个问题，Nacos采用了集中式存储的方式来支持集群化部署，目前只支持MYSQL的存储。
+
+Nacos支持是三种部署模式
+ 1、单机模式-用于测试和单机试用
+ 2、集群模式-用于生产环境，确保高可用。
+ 3、多集群模式-用于多数据中心场景
+```
+27.6 nacos默认的嵌入式数据库derby,切换到mysql。先在window中测试。在下载nacos的文件中将config中的
+nacos-mysql.sql放到数据库中执行。然后修改application.properties配置文件，加入下面的配置进行切换。
+``` 
+spring.datasource.platform=mysql
+db.num=1
+db.url.0=jdbc:mysql://127.0.0.1:3306/nacos?
+characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC
+db.user=root
+db.password=123
+```
+重启nacos，新建立一个配置
+![img](image/nacos-config-mysql-01.png) 
+在数据库可以看到新建立的配置信息了。
+![img](image/nacos-config-mysql-info-1.png) 
+
+27.7、在linux上配置nacos集群。复制一份cluster示例文件，然后修改ip
+![img](image/nacos-cluster-01.png) 
+
+
+如果是在一台机器上配置nacos集群，那么如果是三个不同的端口那么就修改下面的nacos中bin目录下的startup.sh文件
+```shell script
+# m:代表走那种模式
+# f:代表走 FUNCTION_MODE 模式
+# p:这里新加一个
+while getopts ":m:f:s:p:" opt
+do
+    case $opt in
+        m)
+            MODE=$OPTARG;;
+        f)
+            FUNCTION_MODE=$OPTARG;;
+        s)
+            SERVER=$OPTARG;;
+        p)
+            PORT=$OPTARG;;
+        ?)
+        echo "Unknown parameter"
+        exit 1;;
+    esac
+done
+
+#在最后加入 .Dserver.port=${PORT}
+# start
+echo "$JAVA ${JAVA_OPT}" > ${BASE_DIR}/logs/start.out 2>&1 &
+nohup $JAVA.Dserver.port=${PORT} ${JAVA_OPT} nacos.nacos >> ${BASE_DIR}/logs/start.out 2>&1 &
+echo "nacos is starting，you can check the ${BASE_DIR}/logs/start.out"
+~   
+```
+
+Nginx下载解压
+```
+进入解压后的目录，指定安装路径，输入cd /usr/local/nginx
+./configure --prefix=/usr/local/nginx --conf-path=/usr/local/nginx/nginx.conf
+
+注：不指定prefix,则可执行文件默认放在/usr/local/bin,
+库文件默认放在/usr/local/lib,配置文件默认放在/usr/local/etc
+```
+![img](image/nginx-config-01.png) 
+
+编译：/usr/local/nginx目录下输入 make
+![img](image/nginx-make.png) 
+安装：/usr/local/nginx目录下输入make install
+![img](image/nginx-make-install.png) 
+
+nginx下的文件
+![img](image/nginx-config-02.png) 
+
+如果出现了下面的错误，那么就是在执行 ./configure 的时候路径不对
+```
+"conf/koi-win" 与"/usr/local/nginx-1.18.0/conf/koi-win" 为同一文件 
+```
+
+只有nginx编译后，才会在文件下发现sbin等目录。
+
+配置Nginx代理
+```shell script
+ upstream cluster{
+       server 192.168.199.201:8848;
+       server 192.168.199.202:8848;
+       server 192.168.199.203:8848;
+    }
+
+server {
+      #默认的端口是80，现在改为1111，意味着所有的访问来之后都先访问1111这个端口
+        listen       1111;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+        location / {
+           # root   html;
+           # index  index.html index.htm;
+           # 使用自己的代理
+           proxy_pass http://cluster;
+        }
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        ......
+        # 
+       
+}
+```
+在nginx文件中进入sbin目录，然后输入./nginx 启动nginx后，访问指定的ip
+http://192.168.199.201/ 就可以看到nginx已经启动了
+![img](image/nginx-start-0001.png) 
+
+启动nacos，如下图可以看到
+![img](image/nacos-cluster-linux-01.png) 
+查看集群个数为3个
+```shell script
+[root@cc1 bin]# ps -ef|grep nacos|grep -v grep|wc -l
+3
+
+#开始端口
+[root@cc1 bin]# firewall-cmd --zone=public --add-port=3306/tcp --permanent
+Warning: ALREADY_ENABLED: 3306:tcp
+success
+[root@cc1 bin]# firewall-cmd --zone=public --add-port=1111/tcp --permanent
+success
+```
+
+28、Spring Cloud Alibaba Sentinel 熔断限流
+ 1.是什么？
+   
+    是面向云原生微服务的高可用流控防护组件。可以保护你的微服务。随着微服务的流行，服务和服务之间的稳定性变得越来越重要。
+    Sentinel 以流量为切入点，从流量控制、熔断降级、系统负载保护等多个维度保护服务的稳定性。
+ 
+
+28.1、Sentinel 下载安装，在github下载之后是一个jar文件，直接java -jar 启动就可以了。
+![img](image/sentinel-start-01.png) 
+
+28.2 新建模块cloudalibaba-sentinel-service8401。然后和nacos8848配合测试熔断、限流等
+在pom文件中加入sentinel的相关依赖,以及nacos的依赖。 修改yml配置文件
+```yaml
+server:
+  port: 8401
+
+spring:
+  application:
+    name: cloud-alibaba-sentinel-service
+  cloud:
+    nacos:
+      # nacos 服务注册中心地址
+      discovery:
+        server-addr: localhost:8848
+    sentinel:
+      transport:
+        #配置sentinel dashboard地址
+        dashboard: localhost:8080
+        #默认8719端口，假如被占用会自动从8719开始依次+1扫描，直到找到未被占用的端口
+        port: 8719
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+```
+创建主启动类MainApp8401，再创建FlowLimitController来测试
+```java
+package controller;
+
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @ClassName: FlowLimitController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/24 22:30
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+@Slf4j
+public class FlowLimitController {
+
+    /**
+     * 方法testA
+     * @return
+     */
+    @GetMapping("/testA")
+    public String testA(){
+        return "testA-----";
+    }
+
+    @GetMapping("/testB")
+    public String testB(){
+        return "testB   -----";
+    }
+
+   
+}
+
+```
+ 在启动nacos和sentinel之后，进入sentinel，但是什么都没有，这是因为sentinel是懒加载，也就是说
+ 要执行一次访问才能在sentinel中看到被监控的nacos等。
+![img](image/cloud-alibab-sentinel-8401-01.png) 
+再次进入sentinel刷新就可以看到这个sentinel微服务cloud-alibaba-sentinel-service。
+![img](image/cloud-alibaba-sentinel-02.png) 
+
+28.3、流控模式，在簇点链路中配置，QPS(每秒请求数)
+![img](image/cloud-alibaba-sentinel-03.png) 
+测试添加配置的是1s阈值时1，新增后进入流控规则列表,如果1s之内超过了阈值就快速失败。
+![img](image/cloud-alibaba-sentinel-04.png) 
+然后测试 http://localhost:8401/testA 接口,一直刷新就会被限流。这种是快速失败（默认错误）
+![img](image/cloud-alibaba-sentinel-flow-limiting-01.png) 
+
+28.4、流控模式，线程数
+测试线程数，修改testA方法，让其sleep 1000毫秒，然后浏览器中开两个页面访问testA接口，然后可以看到也被限流了
+![img](image/cloud-alibaba-sentinel-thread-01.png) 
+QPS和线程数区别
+``` 
+QPS：比如银行办理业务，这个QPS是将人员挡在门外。
+线程数：表示人员已经进入银行里面，但是现在只有一个柜台办理人员能处理业务。所以其它的都被限流了。
+```
 
 
 

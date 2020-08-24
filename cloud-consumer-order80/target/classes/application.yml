@@ -5,7 +5,7 @@ spring:
   application:
     name: cloud-consumer-service
   zipkin:
-    base-url: http://localhost:9412
+    base-url: http://localhost:9411
   sleuth:
     sampler:
       #采样取值介于 0到1之间，1则表示全部收集
@@ -29,9 +29,9 @@ eureka:
     fetch-registry: true
     service-url:
       #集群版
-      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
+#      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
       #单机版
-      #      defaultZone: http://eureka7001.com:7001/eureka/
+      defaultZone: http://eureka7001.com:7001/eureka/
 #      defaultZone: http://localhost:7001/eureka/
   instance:
     instance-id: consumer80
