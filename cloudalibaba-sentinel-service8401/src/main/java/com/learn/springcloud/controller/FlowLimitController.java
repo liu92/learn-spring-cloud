@@ -27,11 +27,11 @@ public class FlowLimitController {
      */
     @GetMapping("/testA")
     public String testA(){
-        try {
-            TimeUnit.MILLISECONDS.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            TimeUnit.MILLISECONDS.sleep(1000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
         return "testA-----";
     }
 
@@ -58,7 +58,7 @@ public class FlowLimitController {
         return "testException -----";
     }
 
-    @GetMapping("/testExceptionCount")
+    @GetMapping("/testE")
     public String testExceptionCount(){
         log.info("testExceptionCount 异常数");
         int age = 10 /0 ;
@@ -69,11 +69,13 @@ public class FlowLimitController {
     @SentinelResource(value = "testHotKey", blockHandler = "dealTestHotKey")
     public String testHotKey(@RequestParam(value = "p1", required = false) String p1,
                              @RequestParam(value = "p2", required = false) String p2){
-        int age = 10 /0;
+//        int age = 10 /0;
         return "testHotKey -----";
     }
 
     public String dealTestHotKey(String p1, String p2, BlockException blockException){
+
+        // sentinel系统模式的提示：Blocked by Sentinel(flow limiting)
         return "dealTestHotKey---------";
     }
 }

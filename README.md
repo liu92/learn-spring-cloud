@@ -2810,6 +2810,353 @@ QPS：比如银行办理业务，这个QPS是将人员挡在门外。
 线程数：表示人员已经进入银行里面，但是现在只有一个柜台办理人员能处理业务。所以其它的都被限流了。
 ```
 
+28.4、流控模式，关联
+``` 
+当关联的资源达到阈值时，就限流自己
+当与A关联的资源B达到阈值之后，就限流A自己
+```
+![img](image/cloud-alibaba-sentinel-05.png) 
+使用postman来测试
+![img](image/cloud-alibaba-sentinel-postman-test-01.png) 
+在postman设置线程数，每0.3秒就有1个线程发送过去。一共200个线程
+![img](image/cloud-alibaba-sentinel-postman-test-02.png) 
+再次到浏览器中请求testA，发现testA被限流。大批量线程访问testB,导致testA失效了。
+```
+快速失败，源码 
+com.alibaba.csp.sentinel.slots.block.flow.controller.DefaultController
+
+```
+
+28.4、流控模式，预热
+``` 
+默认coldFactor(冷加载因子)为3，即请求QPS从threadhold/3开始,经过预热时长逐渐升至设定的QPS阈值。
+
+com.alibaba.csp.sentinel.slots.block.flow.controller.WarmUpController 源码
+```
+测试案例
+![img](image/cloud-alibaba-sentinel-warm-up-01.png) 
+```
+表示：阈值为10+预热时长设置为5秒。系统初始化的阈值为10/3约等于3，即阈值刚开始为3；然后过了5秒后阈值
+慢慢升高恢复到10。
+```
+访问 http://localhost:8401/testB ，在开始的5秒内会出现Blocked by Sentinel(flow limiting)。之后
+限流慢慢升高恢复到原来设置的。
+
+28.5、流控模式，排队等待
+```
+ 匀速排队(RuleConstans.CONTROL_BEHAVIOR_RATE_LIMITER)方式会严格控制请求的通过间隔时间，也即是
+让请求以均匀的速度通过，对应的时漏桶算法。
+com.alibaba.csp.sentinel.slots.block.flow.controller.RateLimiterController
+```
+
+设置匀速排队
+![img](image/cloud-alibaba-sentinel-queue-01.png) 
+``` 
+匀速排队，让请求以均匀的速度通过，阈值类型必须设成QPS，否则无效。
+设置含义：/testA每秒1次请求，超过的话就排队等待，等待的超时时间为20000毫秒。
+```
+
+28.5 sentinel 服务降级
+  
+    Sentinel 提供以下几种熔断策略：
+    1、慢调用比例 (SLOW_REQUEST_RATIO)：选择以慢调用比例作为阈值，需要设置允许的慢调用 RT（即最大的响应时间），请求的响应时间大于该值则统计为慢调用。当单位统计时长（statIntervalMs）内请求数目大于设置的最小请求数目，并且慢调用的比例大于阈值，则接下来的熔断时长内请求会自动被熔断。经过熔断时长后熔断器会进入探测恢复状态（HALF-OPEN 状态），若接下来的一个请求响应时间小于设置的慢调用 RT 则结束熔断，若大于设置的慢调用 RT 则会再次被熔断。
+    2、异常比例 (ERROR_RATIO)：当单位统计时长（statIntervalMs）内请求数目大于设置的最小请求数目，并且异常的比例大于阈值，则接下来的熔断时长内请求会自动被熔断。经过熔断时长后熔断器会进入探测恢复状态（HALF-OPEN 状态），若接下来的一个请求成功完成（没有错误）则结束熔断，否则会再次被熔断。异常比率的阈值范围是 [0.0, 1.0]，代表 0% - 100%。
+    3、异常数 (ERROR_COUNT)：当单位统计时长内的异常数目超过阈值之后会自动进行熔断。经过熔断时长后熔断器会进入 
+
+在sentinel中可以看到熔断降级的设置
+![img](image/sentinel-fuse-01.png) 
+``` 
+RT(平均响应时间，秒级)
+平均响应时间 超出阈值 且 在时间窗口内通过的请求 > =5 ,两个条件同时满足后触发降级
+窗口期过后关闭断路器
+ RT最大4900(更大的需要通过-Dcsp.sentinel.statistic.max.rt=xxxx 才能生效)
+
+异常比例(秒级)
+QPS>=5 且异常比例(秒级统计)超过阈值时，触发降级；时间窗口结束后，关闭降级
+
+异常数(分钟级)
+  异常数(分钟统计)超过阈值时，触发降级；时间窗口结束后，关闭降级
+```
+
+Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时(例如调用超时或异常比例升高)，对这个资源的调用进行限制，
+让请求快速失败，避免影响到其它的资源二导致级联错误。
+当资源被降级后，在接下来的降级时间窗口子内，对该资源的调用都自动熔断(默认行为时抛出DegradeException)
+
+
+添加测试接口testD。
+``` 
+   @GetMapping("/testD")
+    public String testD(){
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        log.info("testD 测试RT");
+        return "testD -----";
+    }
+```
+然后设置降级规则
+![img](image/sentinel-fuse-02.png) 
+``` 
+平均响应时间(DEGRADE_GRADE_RT)：当1s内持续进入5个请求，对应时刻的平均响应时间(秒级)均超过阈值
+(count,以ms为单位)，那么接下来的时间窗口(DegradeRule 中的timeWindow，以s为单位)之内，对这个方法的
+调用都会自动地熔断(抛出DegradeException)。注意Sentinel默认统计的RT上限是4900ms，超出此阈值的都会
+算作4900ms，若需要变更此上限可以通过启动配置项 —Dcsp.sentinel.statistic.max.rt=xx 来配置
+```
+在上面设置的是200毫秒，响应请求。但是在测试方法testD中设置了休眠1s。然后使用jmeter来测试。
+设置线程数是10个，每次请求花费1秒钟，这个设置远远达不到200ms的要求。
+![img](image/sentinel-rt-jmeter-01.png) 
+那么这个时候再次请求http://localhost:8401/testD。就会出现 Blocked by Sentinel(flow limiting)。
+
+从上述设置的可知，永远1秒钟进入10给线程（大于5个了）调用testD，我们希望200毫秒处理完本次任务，
+如果超过200毫秒还没有处理完，在未来1秒钟的时间窗口内，断路器打开(保险丝跳闸)微服务不可用，保险丝跳闸
+断电了。 当后面停止jmeter测试，没有大量的访问后，断路器(保险丝恢复)，微服务恢复ok。
+
+
+28.6 sentinel 服务降级-异常比例
+``` 
+异常比例: 当资源的每秒请求量 >=5 ,并且每秒异常总数占通过量的比值超过阈值之后，资源进入降级状态，即在接下来
+的时间窗口之内，对这个方法的调用都会自动地返回。异常比率的阈值范围是0%-100%。
+```
+下面设置异常比例是0.2，时间窗口是3秒，也就是说错误比例超过0.2,那么在接下来的3s内，服务降级不可用。
+![img](image/sentinel-error-ratio-01.png) 
+测试方法，错误比例为100%
+``` 
+  @GetMapping("/testException")
+    public String testException(){
+        log.info("testException 异常比例");
+        int age = 10 /0 ;
+        return "testException -----";
+    }
+```
+所以使用jmeter 发送请求时，然后请求这个接口就可以看到，服务不可使用。
+![img](image/sentinel-error-ratio-02.png)
+当停止jmeter时。再次 http://localhost:8401/testException，会看到报错异常错误，虽然没有进入服务降级
+但是这个出现了异常错误，是因为代码的问题 而不是服务降级了。 
+
+
+28.6 sentinel 服务降级-异常数
+``` 
+当资源近1分钟的异常数目超过阈值之后会进行熔断。注意时间窗口是分钟级别的。若timewindow小于60s，则结束
+熔断状态后仍可能再进入熔断状态。
+```
+![img](image/sentinel-exception-numer-1.png)
+使用测试方法testE来进行测试,这里是故意出错。
+```
+  @GetMapping("/testE")
+    public String testExceptionCount(){
+        log.info("testExceptionCount 异常数");
+        int age = 10 /0 ;
+        return "testExceptionCount -----";
+    } 
+```
+设置异常数是5，时间窗口是70s。
+![img](image/sentinel-exception-numer-rule-01.png)
+
+测试http://localhost:8401/testE，如果当异常超过5次后，那么再次请求就会进入服务降级，服务不可用。
+![img](image/sentinel-exception-numer-2.png)
+``` 
+访问http://localhost:8401/testE，第一次访问绝对报错，因为除数不能为零，我们看到error窗口，
+但是达到5次报错后，进入熔断降级。
+```
+
+28.6 sentinel 热点key。
+``` 
+何为热点？
+热点即经常访问的数据。很多时候我们希望统计某个热点数据中访问频次最高的 Top K 数据，
+并对其访问进行限制。比如：
+
+商品 ID 为参数，统计一段时间内最常购买的商品 ID 并进行限制
+用户 ID 为参数，针对一段时间内频繁访问的用户 ID 进行限制
+热点参数限流会统计传入参数中的热点参数，并根据配置的限流阈值与模式，对包含热点参数的资源调用进行限流。
+热点参数限流可以看做是一种特殊的流量控制，仅对包含热点参数的资源调用生效。
+```  
+![img](image/sentinel-hot-param-overview-1.png)
+
+添加方法测试热点key，方法testHotKey，注意@SentinelResource注解，这里value是资源名称要唯一，
+还有blockHandler表示兜底方法，这个和HystrixCommand注解类似。
+``` 
+  @GetMapping("/testHotKey")
+    @SentinelResource(value = "testHotKey", blockHandler = "dealTestHotKey")
+    public String testHotKey(@RequestParam(value = "p1", required = false) String p1,
+                             @RequestParam(value = "p2", required = false) String p2){
+        return "testHotKey -----";
+    }
+
+    public String dealTestHotKey(String p1, String p2, BlockException blockException){
+        return "dealTestHotKey---------";
+    }
+```
+首先访问http://localhost:8401/testHotKey?p1=a&p2=b,能正常访问
+![img](image/sentinel-hot-param-testHotKey-01.png)
+
+然后在sentinel中添加规则，进行测试
+![img](image/sentinel-hot-param-rule-01.png)
+当热点key的规则设置好了之后，再次请求http://localhost:8401/testHotKey?p1=a&p2=b,
+如果是1s 访问一次那么是正常的，如果突然一直点击请求，就会出现下面的兜底返回内容。
+![img](image/sentinel-hot-param-testHotKey-02.png)
+
+这里可以得到结论
+``` 
+@SentinelResource(value = "testHotKey", blockHandler = "dealTestHotKey")。
+在使用注解时，如果违背了sentinel中配置的规则，那么出错了之后就会根据设定进入blockHandler 对应的方法
+来进行兜底处理。 如果不设置兜底方法那么在出现错的时候，页面呈现的就error page。这样不友好
+
+根据规则设置，方法testHotKey里面第一个参数只要QPS超过每秒1次，马上降级处理
+```
+
+ 28.7 sentinel 热点key参数例外项。 
+``` 
+在上述测试中演示了第一给参数p1,当QPS超过1秒1次点击后马上被限流。 
+特例情况：
+   普通：超过1秒种一个后，达到阈值1后马上被限流
+    现在我们期望p1参数当它是某个特殊值时，它的限流值和平时不一样
+    假如当p1的值等于5时，它的阈值可以达到200 (也就说当p1=5时，他的阈值可以达到很高 ，根据规则配置来) 
+```
+下面添加参数例外项。在参数p1不等于5时，阈值就是1。在参数p1参数等于5时，阈值就是200。
+![img](image/sentinel-hot-param-rule-special-case-01.png)
+当请求http://localhost:8401/testHotKey?p1=5 时，一直刷新也不会有任何问题，这就是参数特殊值
+![img](image/sentinel-hot-param-special-case-02.png)
+注意参数必须时基本类型或者string.
+
+``` 
+@SentinelResource 注解 处理的是Sentinel控制台配置的违规情况，有blockHandler方法配置的兜底处理
+
+RuntimeException 比如
+ int a = 10/0; 这个是java运行时报出的运行时异常 RuntimeException,@SentinelResource 不会管这种错。
+
+总结：@SentinelResource 主管配置出错，运行错误该走异常 还是走异常。
+
+```
+
+28.8 sentinel 系统规则
+
+
+28.9 注解@SentinelResource ，按资源名称限流和后续处理。修改8401模块pom，加入cloud-api-commons。
+新添加RateLimitController类，来测试
+```java
+package com.learn.springcloud.controller;
+
+import cn.hutool.core.util.IdUtil;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.learn.springcloud.entities.CommonResult;
+import com.learn.springcloud.entities.Payment;
+import com.learn.springcloud.handler.CustomerBlockHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @ClassName: RateLimitController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/25 15:55
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+public class RateLimitController {
+
+    @GetMapping("/byResource")
+    @SentinelResource(value = "byResource", blockHandler = "handleException")
+    public CommonResult byResource(){
+        return new CommonResult(200, "按资源名称限流测试OK", new Payment(2020L, IdUtil.simpleUUID()));
+    }
+
+    public CommonResult handleException(BlockException blockException){
+        return new CommonResult<>(444, blockException.getClass().getCanonicalName()+"\t服务不可用" );
+    }
+
+}
+```
+上述是按资源名称限流测试，现在根据资源名设置规则，设置的阈值是1，如果1s内QPS超过了那么就会被限流
+![img](image/sentinel-source-name-set-rule-01.png)
+测试http://localhost:8401/byResource，然后突然一直刷新。就可以看到这个被限流了。
+![img](image/sentinel-source-name-test-01.png)
+
+
+28.9.2 按照url限流测试, 通过访问的URL来限流，会返回sentinel自带默认的限流处理信息。
+在RateLimitController中添加根据url限流的方法
+``` 
+    @GetMapping("/rateLimit/byUrl")
+    @SentinelResource(value = "byUrl")
+    public CommonResult byUrl(){
+        return new CommonResult(200, "by url限流测试OK", new Payment(2020L, IdUtil.simpleUUID()));
+    }
+```
+访问 http://localhost:8401/rateLimit/byUrl可以正常访问
+![img](image/sentinel-rate-limit-url-01.png)
+根据url添加流控规则。
+![img](image/sentinel-rate-limit-url-02.png)
+再次访问http://localhost:8401/rateLimit/byUrl,然后多次刷新请求，可以看到这个被限流。如果
+没有自定义的blockHandler,那么就会使用默认的。
+![img](image/sentinel-rate-limit-url-03.png)
+
+在上面兜底方案面临的问题
+``` 
+1、系统默认的，没有体现我们自己的业务要求
+2、按照现有条件，我们自定义的处理方法又和业务代码耦合在一起，不直观。
+3、每个业务方法都添加一个兜底的，那么代码膨胀将加剧。
+4、全局同一的处理方法没有体现。
+```
+
+28.9.3 客户自定义限流处理逻辑，创建 CustomerBlockHandler类用于自定义限流处理逻辑
+```java
+package com.learn.springcloud.handler;
+
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.learn.springcloud.entities.CommonResult;
+
+/**
+ * @ClassName: CustomerBlockHandler
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/25 15:56
+ * History:
+ * @<version> 1.0
+ */
+public class CustomerBlockHandler {
+
+    public static CommonResult handlerException(BlockException exception) {
+        return new CommonResult(444, "客户自定义，global handlerException---1");
+    }
+
+    public static CommonResult handlerException2(BlockException exception) {
+        return new CommonResult(444, "客户自定义，global handlerException---2");
+    }
+}
+
+```
+
+然后将 CustomerBlockHandler添加到RateLimitController中。添加方法然后blockHandlerClass来指定同一的限流降级
+类。blockHandler再来指定这个类中的那个方法。
+``` 
+ @GetMapping("/rateLimit/customerBlockHandler")
+    @SentinelResource(value = "customerBlockHandler",
+            blockHandlerClass = CustomerBlockHandler.class, blockHandler = "handlerException2")
+    public CommonResult customerBlockHandler(){
+        return new CommonResult(200, "客户自定义 限流测试OK", new Payment(2020L, IdUtil.simpleUUID()));
+    }
+```    
+测试这个方法http://localhost:8401/rateLimit/customerBlockHandler。可以看到正常请求
+![img](image/sentinel-customer-block-handler-01.png)
+在sentinel中设置规则。
+![img](image/sentinel-customer-block-handler-rule-01.png)
+再次请求http://localhost:8401/rateLimit/customerBlockHandler，然后快速点击就可以看到这个被限流了
+![img](image/sentinel-customer-block-handler-flow-limiting-01.png)
+
+
+29、sentinel 服务熔断功能。sentinel整合ribbon + openFeign + fallback
+创建两个模块9003、9004 添加pom依赖，和修改application.yml文件等。添加主启动类 和 controller类。
+启动测试http://localhost:9003/paymentSQL/1 ，http://localhost:9004/paymentSQL/1 都能正常访问
+![img](image/sentinel-payment-9003-01.png)
+![img](image/sentinel-payment-9004-01.png)    
+
+新建cloudalibaba-consumer-nacos-order84 消费者模块。修改pom和yml配置文件。
+
+
+
 
 
 
