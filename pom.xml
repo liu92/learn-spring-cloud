@@ -40,6 +40,9 @@
       <module>cloudalibaba-provider-payment9003</module>
     <module>cloudalibaba-provider-payment9004</module>
     <module>cloudalibaba-consumer-nacos-order84</module>
+    <module>seata-oerder-service2001</module>
+    <module>seata-storage-service2002</module>
+    <module>seata-account-service2003</module>
   </modules>
 
 
@@ -54,7 +57,7 @@
     <lombok.version>1.16.18</lombok.version>
     <mysql.version>8.0.18</mysql.version>
     <druid.version>1.1.16</druid.version>
-<!--    <druid.spring.boot.starter.version>1.1.10</druid.spring.boot.starter.version>-->
+    <druid.spring.boot.starter.version>1.1.10</druid.spring.boot.starter.version>
     <spring.boot.version>2.2.2.RELEASE</spring.boot.version>
     <spring.cloud.version>Hoxton.SR1</spring.cloud.version>
     <spring.cloud.alibaba.version>2.1.0.RELEASE</spring.cloud.alibaba.version>
@@ -113,6 +116,12 @@
         <groupId>com.alibaba</groupId>
         <artifactId>druid</artifactId>
         <version>${druid.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.alibaba</groupId>
+        <artifactId>druid-spring-boot-starter</artifactId>
+        <version>${druid.spring.boot.starter.version}</version>
       </dependency>
 
       <dependency>

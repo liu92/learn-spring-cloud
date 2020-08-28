@@ -3153,10 +3153,1247 @@ public class CustomerBlockHandler {
 ![img](image/sentinel-payment-9003-01.png)
 ![img](image/sentinel-payment-9004-01.png)    
 
-新建cloudalibaba-consumer-nacos-order84 消费者模块。修改pom和yml配置文件。
+新建cloudalibaba-consumer-nacos-order84 消费者模块。修改pom和yml配置文件。然后访问http://localhost:84/consumer/fallback/1
+看看是否能负载均衡的访问9003、9004。可以看到能够负载均衡的访问到9003和9004两个。
+![img](image/sentinel-customer-ribbon-order84-01.png)
+轮询访问到9004
+![img](image/sentinel-customer-ribbon-order84-02.png)
+
+在cloudalibaba-consumer-nacos-order84 ，CircleBreakerController类中如果什么配置都没有配，既没有熔断，也没有降级。
+那么在访问的时候给客户error页面，不友好。
+
+29.1 在CircleBreakerController类中的方法fallback，上配置下面的配置需要一个兜底的方法。
+```
+     @RequestMapping("/consumer/fallback/{id}")
+     @SentinelResource(value = "fallback",fallback = "handlerFallback") //配置了fallback的，fallback只负责业务异常
+     public CommonResult<Payment> fallback(@PathVariable("id") Long id){
+         CommonResult<Payment> commonResult = restTemplate.getForObject(SERVICE_URL + "/paymentSQL/" + id, CommonResult.class);
+         if(id == 4){
+             throw new IllegalArgumentException("IllegalArgumentException,非法参数异常");
+         }else if(commonResult.getData() == null){
+             throw new NullPointerException("NullPointerException,该ID没有记录，空指针异常");
+         }
+         return commonResult;
+     }
+     // 本例是fallback
+     public CommonResult handlerFallback(Long id, Throwable e){
+         Payment payment = new Payment(id, null);
+         return new CommonResult(444, "兜底异常handler，exception内容"+e.getMessage(), payment);
+     }
+```
+那么再次访问http://localhost:84/consumer/fallback/4的时候，如果出错就不会是error页面了，而是一个比较友好的提示。
+![img](image/sentinel-customer-fallback-order84-01.png)
+如果输入的id=5，那么http://localhost:84/consumer/fallback/5 返回得也是一个友好的提示，只是这个是空指针异常。
+![img](image/sentinel-customer-fallback-nullpointerexception-order84-01.png)
+
+
+29.3 在CircleBreakerController类中只配置blockHandler。
+``` 
+  @RequestMapping("/consumer/fallback/{id}")
+       @SentinelResource(value = "fallback",blockHandler = "blockHandler") // 配置了blockHandler，只负责sentinel控制台配置违规
+     public CommonResult<Payment> fallback(@PathVariable("id") Long id){
+         CommonResult<Payment> commonResult = restTemplate.getForObject(SERVICE_URL + "/paymentSQL/" + id, CommonResult.class);
+         if(id == 4){
+             throw new IllegalArgumentException("IllegalArgumentException,非法参数异常");
+         }else if(commonResult.getData() == null){
+             throw new NullPointerException("NullPointerException,该ID没有记录，空指针异常");
+         }
+         return commonResult;
+     }
+
+ public CommonResult blockHandler(Long id, BlockException exception){
+        Payment payment = new Payment(id, null);
+        return new CommonResult<>(445, "blockHandler-sentinel 限流，无此流水号：blockException" + exception.getMessage(), payment);
+    }
+```
+只配置了blockHandler，那么需要到sentinel中添加服务降级规则。配置的是异常数，如果出现两次异常数，那么后面就会进行服务降级。
+![img](image/sentinel-customer-block-handler-order84-01.png)
+那么在测试http://localhost:84/consumer/fallback/4时候，在前面两次的请求中，返回的是error错误界面，当错误数超过了两次
+才会进入服务降级
+![img](image/sentinel-customer-block-handler-02.png)
+
+
+29.3 在CircleBreakerController类中blockHandler和fallback都配置。
+``` 
+   @RequestMapping("/consumer/fallback/{id}")
+   @SentinelResource(value = "fallback",fallback = "handlerFallback", blockHandler = "blockHandler")
+   public CommonResult<Payment> fallback(@PathVariable("id") Long id){
+         CommonResult<Payment> commonResult = restTemplate.getForObject(SERVICE_URL + "/paymentSQL/" + id, CommonResult.class);
+         if(id == 4){
+             throw new IllegalArgumentException("IllegalArgumentException,非法参数异常");
+         }else if(commonResult.getData() == null){
+             throw new NullPointerException("NullPointerException,该ID没有记录，空指针异常");
+         }
+         return commonResult;
+  }
+
+ // 本例是fallback
+    public CommonResult handlerFallback(Long id, Throwable e){
+        Payment payment = new Payment(id, null);
+        return new CommonResult(444, "兜底异常handler，exception内容"+e.getMessage(), payment);
+    }
+
+    public CommonResult blockHandler(Long id, BlockException exception){
+        Payment payment = new Payment(id, null);
+        return new CommonResult<>(445, "blockHandler-sentinel 限流，无此流水号：blockException" + exception.getMessage(), payment);
+    }
+```
+那么在sentinel中配置流控规则,配置的是QPS类型，阈值是1s。
+![img](image/sentinel-customer-fallback-block-handler-order84-01.png)
+请求http://localhost:84/consumer/fallback/2,如果1s点击一次那么就是正常的，但是如果快速点击请求就可以看到 
+访问正常的也会被限流。
+![img](image/sentinel-customer-fallback-order84-04.png)
+请求http://localhost:84/consumer/fallback/4，那么如果正常请求返回的就是异常信息。
+![img](image/sentinel-customer-fallback-exception-01.png)
+但是当请求http://localhost:84/consumer/fallback/4,就会会违背sentinel中限流的规则。进行限流
+![img](image/sentinel-customer-fallback-block-exception-01.png)
+
+结论
+```
+如果blockHandler和fallback都进行了配置，则被限流降级而抛出BlockException时只会进入blockHandler处理逻辑。
+```
+
+
+29.4 在CircleBreakerController类中异常忽略，exceptionsToIgnore = {IllegalArgumentException.class}
+假如报该异常，不再有fallback方法兜底，没有降级效果了。
+```
+ @RequestMapping("/consumer/fallback/{id}")
+ @SentinelResource(value = "fallback",fallback = "handlerFallback", blockHandler = "blockHandler",
+   exceptionsToIgnore = {IllegalArgumentException.class})
+   public CommonResult<Payment> fallback(@PathVariable("id") Long id){
+         CommonResult<Payment> commonResult = restTemplate.getForObject(SERVICE_URL + "/paymentSQL/" + id, CommonResult.class);
+         if(id == 4){
+             throw new IllegalArgumentException("IllegalArgumentException,非法参数异常");
+         }else if(commonResult.getData() == null){
+             throw new NullPointerException("NullPointerException,该ID没有记录，空指针异常");
+         }
+         return commonResult;
+  } 
+```
+那么在请求的时候，又会出现error page 页面了。
+
+29.5 sentinel 服务熔断OpenFeign。修改84，在pom中加入OpenFeign依赖和yml中添加Sentinel对feign的支持。
+在主启动类添加@EnableFeignClients注解来对激活Feign。 并且在PaymentService接口中添加@FeignClient注解，
+那么controller就不用去找RestTemplate，而是根据@FeignClient指定的服务名去查找。
+```java
+package com.learn.springcloud.service;
+
+import com.learn.springcloud.entities.CommonResult;
+import com.learn.springcloud.entities.Payment;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+/**
+ * @ClassName: PaymentService
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/25 17:38
+ * History:
+ * @<version> 1.0
+ */
+@FeignClient(value = "nacos-payment-provider", fallback = PaymentFallbackService.class)
+public interface PaymentService {
+    @GetMapping("/paymentSQL/{id}")
+    CommonResult<Payment> paymentSQL(@PathVariable("id") Long id);
+}
+
+```
+然后实现这个接口PaymentService，实现类PaymentFallbackService，如果出现错误了那么这个来兜底处理。
+从接口的注解配置可知fallback对应的类。
+```java
+package com.learn.springcloud.service;
+
+import com.learn.springcloud.entities.CommonResult;
+import com.learn.springcloud.entities.Payment;
+import org.springframework.stereotype.Component;
+
+/**
+ * @ClassName: PaymentFallbackService
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/25 17:39
+ * History:
+ * @<version> 1.0
+ */
+@Component
+public class PaymentFallbackService implements PaymentService{
+
+    @Override
+    public CommonResult<Payment> paymentSQL(Long id) {
+          return new CommonResult<>(444, "服务降级返回，----PaymentFallbackService",
+                        new Payment(id, "errorSerial"));
+    }
+}
+ 
+```
+在CircleBreakerController中添加接口来测试
+```java
+package com.learn.springcloud.controller;
+
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.learn.springcloud.entities.CommonResult;
+import com.learn.springcloud.entities.Payment;
+import com.learn.springcloud.service.PaymentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import javax.annotation.Resource;
+
+/**
+ * @ClassName: CircleBreakerController
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/25 17:37
+ * History:
+ * @<version> 1.0
+ */
+@RestController
+@Slf4j
+public class CircleBreakerController {
+
+   
+
+    // --------------- open feign---------
+
+    @Resource
+    private PaymentService paymentService;
+
+    @GetMapping("/consumer/paymentSQL/{id}")
+    public CommonResult<Payment> paymentSQL(@PathVariable("id") Long id){
+        return paymentService.paymentSQL(id);
+    }
+}
+
+```
+现在请求http://localhost:84/consumer/paymentSQL/2，可以正常返回
+![img](image/sentinel-customer-payment-feign-order84-01.png)
+如果故意将9003服务提供者关闭，看84消费侧是否自动降级，会不会被耗死。在关闭了服务提供者9003后
+再次请求http://localhost:84/consumer/paymentSQL/2 ,可以发现服务被降级了，完成一种自我的保护。
+![img](image/sentinel-customer-payment-feign-order84-02.png)
+
+
+29.5 sentinel持久化规则。
+``` 
+在sentinel中配置规则后，如果重启sentinel那么规则就会消失，所以生产环境需要
+将规则配置进行持久化。 将限流配置规则持久化进Nacos保存，只要刷新8401某个rest地址，sentinel控制台的流控
+规则就能看到，只要Nacos里面的配置不删除，针对8401上sentinel上的流控规则持续有效。
+```
+在模块cloudalibaba-sentinel-service8401中添加依赖，将sentinel配置规则持久化到nacos中。
+然后再yml中添加nacos数据源配置。
+```yaml
+  datasource:
+      dsl:
+        nacos:
+          server-addr: localhost:8848
+          dataId: cloud-alibaba-sentinel-service
+          groupId: DEFAULT_GROUP
+          data-type: json
+          rule-type: flow
+```
+然后再到nacos中添加一个配置。 一定要注意配置
+```
+ [
+     {
+     "resource":"/rateLimit/byUrl",
+     "limitApp": "default",
+     "grade":1,
+     "count":1,
+     "strategy":0,
+     "controlBehavior":0,
+     "clusterMode":false
+   }
+ ]
+ #resource:资源名称;
+ #limitApp:来源应用；
+ #grade:阈值类型，0表示线程数，1表示QPS；
+ #count:单机阈值；
+ #strategy:流控模式，0表示直接，1表示关联，2表示链路；
+ #controlBehavior：流控效果，0表示快速失败，1表示Warm up, 2表示排队等待；
+ #clusterMode: 是否集群。
+```
+配置的是一个josn，而不是yml文件。
+![img](image/snetinel-data-source-naocs-payment8401.png)
+
+然后启动8401，请求http://localhost:8401/rateLimit/byUrl 后，进入sentinel中可以看到
+![img](image/sentinel-flow-rule-payment8401.png)
+再次请求http://localhost:8401/rateLimit/byUrl 就会发现被限流了
+![img](image/cloud-alibab-sentinel-8401-02.png)
+
+如果这时关闭8401后刷新sentinel后发现流控规则不存在了，但是重启8401号再次刷新后发现这个规则又出现了，
+者说明了sentinel中的规则已经持久化了。
+![img](image/sentinel-data-source-nacos-payment8401-03.png)
+
+
+30、分布式事务问题由来
+``` 
+ 比如在微服务系统中： 订单模块、库存模块、支付等模块这三个如果每个模块的数据库都是单独，在不同的机房。
+那么这个时候就会牵扯到多数据源，多中心跨库的调用问题。有可能就是在下订单的时候添加一条数据，库存扣减
+都成功了才去扣减支付账号的钱等操作。 这三个操作相当于是一个整体，物理上可以是不同的数据库存储，但是在
+逻辑上应该是同一个事务处理。牵扯到这种全局跨库处理的多数据源的统一调度，这就是分布式事务。
+```
+在将单体应用拆分成微服务应用，原来的三个模块被拆分成三个独立的应用，分别使用三个独立的数据源，业务
+操作需要调用三个服务来完成。此时每个服务内部的数据一致性由本地事务来保证，但是全局的数据一致性问题没法
+保证。
+``` 
+ 用户购买商品的业务逻辑，整个业务逻辑由3个微服务提供支持；
+  仓储服务：对给定的商品扣除仓储数量。
+  订单服务：根据采购需求创建订单。
+  账户服务：从用户账户中扣除余额。
+```
+所以在一次业务操作需要跨多个数据源或者跨多个系统进行远程调用时，就会产生分布式事务问题。
+![img](image/seata-business-01.png)
+
+30.1 seata 是什么？能干什么？解决了什么问题？
+``` 
+seata 是什么：
+ Seata是一款开源的分布式事务解决方案，致力于在微服务架构下提供高性能和简单易用的分布式事务服务。
+
+能干什么：一个典型的分布式事务过程 ， 分布式事务处理过程的ID+三组件模型。 
+  Transaction ID XID(全局唯一的事务id)
+  三组件概念：
+        TC (Transaction Coordinator) - 事务协调者
+        维护全局和分支事务的状态，驱动全局事务提交或回滚。
+        
+        TM (Transaction Manager) - 事务管理器
+        定义全局事务的范围：开始全局事务、提交或回滚全局事务。
+        
+        RM (Resource Manager) - 资源管理器
+        管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚。
+  
+```
+下面是请求流程图。
+![img](image/seata-transaction-01.png)
+
+30.2、下载seata,然后修改file.conf和registry.conf文件，将其存储地址改为mysql，并且注册到nacos中去。
+先启动nacos再启动seata，然后到nacos中可以看到已经seata服务已经注册到nacos中了。
+![img](image/seata-registry-nacos-01.png)
+
+
+30.3、订单/库存/账户业务数据库准备
+分布式事务业务说明:
+``` 
+这里会去创建三个服务，一个订单服务，一个库存服务，一个账户服务。
+当用户下单时，会在订单服务中创建一个订单，然后通过远程调用库存服务来扣减下单商品的库存，
+再通过远程调用账户服务来扣减用户账户里面的余额，最后再订单服务中修改订单状态为已完成。
+
+该操作跨越三个数据库，有两次远程调用，很明显会有分布式事务问题。
+
+一句话：下订单-----扣减库存---减账户(余额)
+```
+创建业务数据库和表。
+``` 
+seata_order:存储订单的数据库；
+seata_storage:存储库存的数据库；
+seata_account：存储账户信息的数据库；
+
+CREATE DATABASE seata_order;
+CREATE DATABASE seata_storage;
+CREATE DATABASE seata_account;
+
+再对应的数据库中创建表：t_account，t_order, t_storage, 然后每个数据库建立undo_log回滚日志记录表
+```
+
+30.4、订单/库存/账户业务微服务准备
+``` 
+1、新建订单Order-Module, seata-oerder-service2001
+2、新建库存Storage-Module,seata-storage-service2002
+3、新建账户Account-Module, seata-account-service2003
+```
+然后在2001中创建需要的类来进行测试。实体类Oder，CommonResult，对应的OderDao和业务类OderService。
+并且使用seata对数据源进行代理和 Feign来调用其它两个服务，StorageService类。
+```java
+package com.learn.springcloud.service;
+
+import com.learn.springcloud.domain.CommonResult;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+/**
+ * 库存service,是微服务，通过feign来调用库存服务,
+ * @ClassName: StorageService
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/26 15:46
+ * @History:
+ * @<version> 1.0
+ */
+@FeignClient(value = "seata-storage-service")
+public interface StorageService {
+
+    /**
+     * 通过feign来查找微服务seata-storage-service，然后找下的这个方法来进行扣减库存操作。
+     * 扣减库存操作
+     * @param productId 对应商品id
+     * @param count  扣减数量
+     * @return
+     */
+    @PostMapping("/storage/decrease")
+    CommonResult decrease(@RequestParam("productId") Long productId, @RequestParam("count")
+                          Integer count);
+}
+
+```
+AccountService类
+```java
+package com.learn.springcloud.service;
+
+import com.learn.springcloud.domain.CommonResult;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.math.BigDecimal;
+
+/**
+ * 账户service ,通过Feign来调用 账户微服务。
+ * @ClassName: AccountService
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/26 15:46
+ * @History:
+ * @<version> 1.0
+ */
+@FeignClient(value = "seata-account-service")
+public interface AccountService {
+
+    /**
+     *  通过feign来查找微服务seata-account-service，然后通过post请求
+     *  找下的这个方法来进行账户余额扣减操作。
+     * @param userId 用户id
+     * @param money 扣减金额
+     * @return
+     */
+    @PostMapping("/account/decrease")
+    CommonResult decrease(@RequestParam("userId") Long userId,
+                          @RequestParam("money")BigDecimal money);
+}
+
+```
+
+那么在2002和2003 模块中添加依赖，然后编写相关的业务代码。对应的2002是库存模块，2003是账户余额模块。
+注意在启动模块是，需要将项目模块中yml配置和 seata-server配置文件中的事务分组一直，然后启动会报错
+``` 
+no available server to connect
+```
+这里使用的是seata-server-0.9.0版本，要修改file.conf文件中的 vgroup_mapping.prex_tx_group="default"
+这里的prex_tx_group 自己定义的，如果使用db做出存储那么还要修改db对应的数据库账户密码。
+```
+transport {
+  # tcp udt unix-domain-socket
+  type = "TCP"
+  #NIO NATIVE
+  server = "NIO"
+  #enable heartbeat
+  heartbeat = true
+  #thread factory for netty
+  thread-factory {
+    boss-thread-prefix = "NettyBoss"
+    worker-thread-prefix = "NettyServerNIOWorker"
+    server-executor-thread-prefix = "NettyServerBizHandler"
+    share-boss-worker = false
+    client-selector-thread-prefix = "NettyClientSelector"
+    client-selector-thread-size = 1
+    client-worker-thread-prefix = "NettyClientWorkerThread"
+    # netty boss thread size,will not be used for UDT
+    boss-thread-size = 1
+    #auto default pin or 8
+    worker-thread-size = 8
+  }
+  shutdown {
+    # when destroy server, wait seconds
+    wait = 3
+  }
+  serialization = "seata"
+  compressor = "none"
+}
+service {
+  #vgroup->rgroup
+  # 事务组名称 
+  vgroup_mapping.prex_tx_group="default"
+  #only support single node
+  default.grouplist = "127.0.0.1:8091"
+  #degrade current not support
+  enableDegrade = false
+  #disable
+  disable = false
+  #unit ms,s,m,h,d represents milliseconds, seconds, minutes, hours, days, default permanent
+  max.commit.retry.timeout = "-1"
+  max.rollback.retry.timeout = "-1"
+}
+
+client {
+  async.commit.buffer.limit = 10000
+  lock {
+    retry.internal = 10
+    retry.times = 30
+  }
+  report.retry.count = 5
+  tm.commit.retry.count = 1
+  tm.rollback.retry.count = 1
+}
+
+## transaction log store
+store {
+  ## store mode: file、db
+  mode = "db"
+
+  ## file store
+  file {
+    dir = "sessionStore"
+
+    # branch session size , if exceeded first try compress lockkey, still exceeded throws exceptions
+    max-branch-session-size = 16384
+    # globe session size , if exceeded throws exceptions
+    max-global-session-size = 512
+    # file buffer size , if exceeded allocate new buffer
+    file-write-buffer-cache-size = 16384
+    # when recover batch read size
+    session.reload.read_size = 100
+    # async, sync
+    flush-disk-mode = async
+  }
+
+  ## database store
+  db {
+    ## the implement of javax.sql.DataSource, such as DruidDataSource(druid)/BasicDataSource(dbcp) etc.
+    datasource = "dbcp"
+    ## mysql/oracle/h2/oceanbase etc.
+    db-type = "mysql"
+    driver-class-name = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://127.0.0.1:3306/seata"
+    user = "root"
+    password = "123"
+    min-conn = 1
+    max-conn = 3
+    global.table = "global_table"
+    branch.table = "branch_table"
+    lock-table = "lock_table"
+    query-limit = 100
+  }
+}
+lock {
+  ## the lock store mode: local、remote
+  mode = "remote"
+
+  local {
+    ## store locks in user's database
+  }
+
+  remote {
+    ## store locks in the seata's server
+  }
+}
+recovery {
+  #schedule committing retry period in milliseconds
+  committing-retry-period = 1000
+  #schedule asyn committing retry period in milliseconds
+  asyn-committing-retry-period = 1000
+  #schedule rollbacking retry period in milliseconds
+  rollbacking-retry-period = 1000
+  #schedule timeout retry period in milliseconds
+  timeout-retry-period = 1000
+}
+
+transaction {
+  undo.data.validation = true
+  undo.log.serialization = "jackson"
+  undo.log.save.days = 7
+  #schedule delete expired undo_log in milliseconds
+  undo.log.delete.period = 86400000
+  undo.log.table = "undo_log"
+}
+
+## metrics settings
+metrics {
+  enabled = false
+  registry-type = "compact"
+  # multi exporters use comma divided
+  exporter-list = "prometheus"
+  exporter-prometheus-port = 9898
+}
+
+support {
+  ## spring
+  spring {
+    # auto proxy the DataSource bean
+    datasource.autoproxy = false
+  }
+}
+```
+修改registry.conf文件,这里使用的是nacos作为注册中心。
+```
+registry {
+  # file 、nacos 、eureka、redis、zk、consul、etcd3、sofa
+  type = "nacos"
+
+  nacos {
+    serverAddr = "localhost:8848"
+    namespace = ""
+    cluster = "default"
+  }
+  eureka {
+    serviceUrl = "http://localhost:8761/eureka"
+    application = "default"
+    weight = "1"
+  }
+  redis {
+    serverAddr = "localhost:6379"
+    db = "0"
+  }
+  zk {
+    cluster = "default"
+    serverAddr = "127.0.0.1:2181"
+    session.timeout = 6000
+    connect.timeout = 2000
+  }
+  consul {
+    cluster = "default"
+    serverAddr = "127.0.0.1:8500"
+  }
+  etcd3 {
+    cluster = "default"
+    serverAddr = "http://localhost:2379"
+  }
+  sofa {
+    serverAddr = "127.0.0.1:9603"
+    application = "default"
+    region = "DEFAULT_ZONE"
+    datacenter = "DefaultDataCenter"
+    cluster = "default"
+    group = "SEATA_GROUP"
+    addressWaitTime = "3000"
+  }
+  file {
+    name = "file.conf"
+  }
+}
+
+config {
+  # file、nacos 、apollo、zk、consul、etcd3
+  type = "file"
+
+  nacos {
+    serverAddr = "nacos"
+    namespace = ""
+  }
+  consul {
+    serverAddr = "127.0.0.1:8500"
+  }
+  apollo {
+    app.id = "seata-server"
+    apollo.meta = "http://192.168.1.204:8801"
+  }
+  zk {
+    serverAddr = "127.0.0.1:2181"
+    session.timeout = 6000
+    connect.timeout = 2000
+  }
+  etcd3 {
+    serverAddr = "http://localhost:2379"
+  }
+  file {
+    name = "file.conf"
+  }
+}
+
+```
+项目中对应的application.yml配置文件,  tx-service-group: prex_tx_group这个要和seata-server中的对应。
+对应三个项目的 tx-service-group 事务分组都是同一个
+```yaml
+server:
+  port: 2001
+
+spring:
+  application:
+    name: seata-order-service
+  cloud:
+    alibaba:
+      seata:
+        # 自定义事务组名称需要与seata-server中的对应
+        tx-service-group: prex_tx_group
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  datasource:
+    # 当前数据源操作类型
+    type: com.alibaba.druid.pool.DruidDataSource
+    # mysql驱动类
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seata_order?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8
+    username: root
+    password: 123
+feign:
+  hystrix:
+    enabled: false
+logging:
+  level:
+    io:
+      seata: info
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+```
+对于nacos-config.txt文件，这里没有修改可以，修改了也可以。。
+![img](image/seata-nacos-config-txt-01.png) 
+
+启动项目后可以看到控制台中打印的注册信息。
+![img](image/seata-tx-group-registry-order2001-01.png) 
+在nacos注册中心可以看到服务列表中，三个测试的模块都已经注册进入nacos中了。
+还一个serverAddr是seata注册到nacos中的服务。
+![img](image/seata-registry-nacos-service-01.png) 
+
+测试请求http://localhost:2001/order/create?userId=1&productId=1&count=10&money=100，来进行创建
+订单。
+![img](image/seata-nacos-order-create-01.png) 
+
+查看数据库订单数据已经生成
+![img](image/seata-order-create-02.png) 
+库存数据已经扣减
+![img](image/seata-storage-decrease-create-02.png) 
+账户余额也减少了。
+![img](image/seata-account-decrease-create-02.png) 
 
 
 
+30.5、模拟超时异常情况下不加@GlobalTransctional 事务注解，事务处理的情况, 在Account模块下模拟超时情况。
+```java
+package com.learn.springcloud.service.impl;
+
+import com.learn.springcloud.dao.AccountDao;
+import com.learn.springcloud.service.AccountService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+import java.math.BigDecimal;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @ClassName: AccountServiceImpl
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/26 17:17
+ * History:
+ * @<version> 1.0
+ */
+@Service
+public class AccountServiceImpl implements AccountService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccountServiceImpl.class);
+
+    @Resource
+    private AccountDao accountDao;
+
+    @Override
+    public void decrease(Long userId, BigDecimal money) {
+        LOGGER.info("------>account-service中扣减余额开始");
+        //模拟超时异常，全局事务回滚
+        try {
+            //暂停20秒钟
+            TimeUnit.SECONDS.sleep(20);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        accountDao.decrease(userId, money);
+        LOGGER.info("------>storage-service中扣减余额开始");
+    }
+}
+```
+重启account后，再次请求http://localhost:2001/order/create?userId=1&productId=1&count=10&money=100
+![img](image/seata-test-account-request-timeout-01.png) 
+查看订单数据库，虽然数据库订单已经添加了但是 状态是0，而0代表未支付，1代表支付。
+![img](image/seata-test-order-timeout-01.png) 
+而库存已经被口掉了，那么这样就会找出数据对应不上。因为支付没有成功那么这些应该回滚，库存数量不应该扣减。
+![img](image/seata-test-storage-timeout-01.png) 
+而且账户也被扣钱了。
+![img](image/seata-test-accout-timeout-01.png)
+
+上述存在的情况
+``` 
+1、库存和账户都扣减了，但是订单状态没有设置为已完成，没有从0改为1。
+2、而且由于feign的超时重试机制，账户余额还有可能被多次扣减。
+```
+所以在这种请求要了解请求服务之间的调用，那么查找问题起来才快速，更容易快速解决。
+
+30.6 超时异常，在order模块中serviceimpl的方法加上@GlobalTransctional注解。
+```java
+package com.learn.springcloud.service.impl;
+
+import com.learn.springcloud.dao.OrderDao;
+import com.learn.springcloud.domain.Order;
+import com.learn.springcloud.service.AccountService;
+import com.learn.springcloud.service.OrderService;
+import com.learn.springcloud.service.StorageService;
+import io.seata.spring.annotation.GlobalTransactional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+
+/**
+ * @ClassName: OrderServiceImpl
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/26 15:47
+ * History:
+ * @<version> 1.0
+ */
+@Service
+@Slf4j
+public class OrderServiceImpl implements OrderService {
+
+    @Resource
+    private OrderDao orderDao;
+
+    @Resource
+    private AccountService accountService;
+
+    @Resource
+    private StorageService storageService;
+
+    /**
+     * 创建订单->调用库存服务扣减库存->调用账户服务扣减账户余额->修改订单状态
+     * 简单说:
+     * 下订单->减库存->减余额->改状态
+     *  GlobalTransactional seata开启分布式事务,异常时回滚,name保证唯一即可
+     * @param order 订单对象
+     */
+    @Override
+    @GlobalTransactional(name = "pre_order_service", rollbackFor = Exception.class)
+    public void create(Order order) {
+        //1、新建订单
+        log.info("------->开始新建订单");
+        orderDao.create(order);
+
+        //2、扣减库存
+        log.info("------->订单微服务开始调用库存，进行扣减Count");
+        storageService.decrease(order.getProductId(), order.getCount());
+        log.info("------->订单微服务开始调用库存，做扣减end");
+
+        //3、扣减账户余额
+        log.info("------->订单微服务开始调用账户服务，做账户余额扣减Money");
+        accountService.decrease(order.getUserId(), order.getMoney());
+        log.info("------->订单微服务开始调用账户服务，做账户余额扣减end");
+
+        //4、修改订单状态，从零到1，1代表已经完成,这里传入0，是根据这个用户id和这个状态标识条件来更新
+        log.info("------->修改订单状态开始");
+        orderDao.update(order.getUserId(), 0);
+        log.info("------->修改订单状态结束");
+
+        log.info("----->下订单结束了,O(∩_∩)O哈哈~");
+    }
+
+}
+```
+然后重启，看看seata能不能的全局事务是否起作用。还是和前面一样的操作http://localhost:2001/order/create?userId=1&productId=1&count=10&money=100
+错误的访问，看看seata有没有控制住这个事务回滚操作。 在请求只会我们看数据库订单数据是否正常。可以看到数据根本
+没有插入到数据库中， 这是因为事务回滚，根本就不会取提交写操作。
+![img](image/seata-test-global-transcation-order-01.png) 
 
 
+总结：seata
+   
+    1、TC:事务的全局协调者(Seata服务器)
+    2、TM:事务的发起方，也就在方法上添加了 @GlobalTransactional注解的方法
+    3、RM：可以理解为数据库（比如上面的订单库、库存库、账户库），事务的参与方
+    TC对不同跨库之间的协调，通过全局事务id
+    
+分布式事务执行流程：
+     
+     1、TM开始分布式事务(TM向TC注册全局事务记录)，
+     2、按业务场景，编排数据库、服务等事务内资源(RM向TC汇报资源准备状态)
+     3、TM结束分步事务，事务一阶段结束(TM通知TC 提交/回滚分布式事务)；
+     4、TC汇总事务信息，决定分布式事务是提交还是回滚；
+     5、TC通知所有RM提交/回滚资源，事务二阶段结束。
+
+AT模式如何做到对业务的无侵入
+      
+      AT模式：
+      两阶段提交协议的演变：
+      一阶段：业务数据和回滚日志记录在同一个本地事务中提交，释放本地锁和连接资源。
+      二阶段：提交异步化，非常快速地完成。回滚通过一阶段的回滚日志进行反向补偿
+        
+      一阶段加载：在一阶段，Seata会连接"业务SQL", 
+       1、解析SQL语义，找到"业务SQL" 要更新的业务数据，在业务数据被更新前，将其保存成"before image"，
+       2、执行"业务SQL" 更新业务数据，在因为数据更新之后，
+       3、其保存成 "after image" ,最后生成行锁
+        以上操作全部在一个数据库事务内完成，这样保证了一阶段操作的原子性。
+
+第一阶段加载
+![img](image/seata-at-first-load-01.png) 
+
+       二阶段如是顺利提交的话，因为"业务SQL"在一阶段已经提交至数据库，所以seata框架只需将一阶段
+       保存的快照数据和行锁删掉，完成数据清理即可
+第二阶段提交
+![img](image/seata-at-second-commit-01.png) 
+
+       二阶段回滚：
+        二阶段如果是回滚的话，seata就需要回滚一阶段已经执行的"业务SQL"，还原业务数据(反向补偿)。
+        回滚方式便是用 "before image" 还原业务数据；但在还原前要首先校验脏写，对比"数据库当前业务数据"和
+        "after image", 如果两份数据完全一致就说明没有脏写，可以还原业务数据，如果不一致就说明有脏写，
+        出现脏写就需要转人工处理。
+ 二阶段回滚操作       
+ ![img](image/seata-at-second-rollback-01.png)    
+ seata 数据库表，global_table、branch_table、lock_table    
+ ![img](image/seata-data-table-01.png)    
+
+
+现在将AccountServiceImpl类中模拟超时方法的处理去掉。那么调试看数据库中数据情况。在debug模式下
+![img](image/seata-debug-request-account-01.png)  
+可以到在数据库seata中 的三个表可以看到global_table表中的数据如下
+```
+xid:192.168.199.116:8091:2052305277
+transaction_id:2052305277
+application_id:seata-order-service
+transaction_service_group:prex_tx_group	
+transaction_name:pre_order_service	
+```
+![img](image/seata-global-table-data-01.png)    
+看表branch_table中也是使用xid这个全局的事务id与global中的对应。并且每个分支都一个branch_id
+``` 
+每一个分支id对的是不同的服务，比如订单的，库存的，账户的，这些都是一一对应。
+branch_id: 2052305279 
+           2052305282
+           2052305285
+```
+![img](image/seata-branch-table-data-01.png)    
+
+同样在lock_table中插入了数据，进行了行级锁定
+![img](image/seata-lock-table-data-01.png) 
+
+
+可以取订单库、库存库、账户库查看undo_log表数据 ,并且数据库中的rollback_info字段信息记录的就是before_image
+和after_image。 因为在mysql中这个字段是blob类型所以需要转换下。这是订单库中的undo_log。
+select CONVERT(rollback_info USING utf8 ) from undo_log;
+```json
+{
+    "@class": "io.seata.rm.datasource.undo.BranchUndoLog",
+    "xid": "192.168.199.116:8091:2052305277",
+    "branchId": 2052305279,
+    "sqlUndoLogs": [
+        "java.util.ArrayList",
+        [
+            {
+                "@class": "io.seata.rm.datasource.undo.SQLUndoLog",
+                "sqlType": "INSERT",
+                "tableName": "t_order",
+                "beforeImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords$EmptyTableRecords",
+                    "tableName": "t_order",
+                    "rows": [
+                        "java.util.ArrayList",
+                        []
+                    ]
+                },
+                "afterImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords",
+                    "tableName": "t_order",
+                    "rows": [
+                        "java.util.ArrayList",
+                        [
+                            {
+                                "@class": "io.seata.rm.datasource.sql.struct.Row",
+                                "fields": [
+                                    "java.util.ArrayList",
+                                    [
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "id",
+                                            "keyType": "PrimaryKey",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                6
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "user_id",
+                                            "keyType": "NULL",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "product_id",
+                                            "keyType": "NULL",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "count",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 10
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "money",
+                                            "keyType": "NULL",
+                                            "type": 3,
+                                            "value": [
+                                                "java.math.BigDecimal",
+                                                100
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "status",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 0
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    ]
+                }
+            }
+        ]
+    ]
+}
+``` 
+![img](image/seata-order-undo-log-table-data-01.png)
+  
+来看看storage中的undo_log数据 
+````json
+{
+    "@class": "io.seata.rm.datasource.undo.BranchUndoLog",
+    "xid": "192.168.199.116:8091:2052305277",
+    "branchId": 2052305282,
+    "sqlUndoLogs": [
+        "java.util.ArrayList",
+        [
+            {
+                "@class": "io.seata.rm.datasource.undo.SQLUndoLog",
+                "sqlType": "UPDATE",
+                "tableName": "t_storage",
+                "beforeImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords",
+                    "tableName": "t_storage",
+                    "rows": [
+                        "java.util.ArrayList",
+                        [
+                            {
+                                "@class": "io.seata.rm.datasource.sql.struct.Row",
+                                "fields": [
+                                    "java.util.ArrayList",
+                                    [
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "id",
+                                            "keyType": "PrimaryKey",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "used",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 30
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "residue",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 70
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    ]
+                },
+                "afterImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords",
+                    "tableName": "t_storage",
+                    "rows": [
+                        "java.util.ArrayList",
+                        [
+                            {
+                                "@class": "io.seata.rm.datasource.sql.struct.Row",
+                                "fields": [
+                                    "java.util.ArrayList",
+                                    [
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "id",
+                                            "keyType": "PrimaryKey",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "used",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 40
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "residue",
+                                            "keyType": "NULL",
+                                            "type": 4,
+                                            "value": 60
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    ]
+                }
+            }
+        ]
+    ]
+}
+````
+
+account库中undo_log数据 
+```json
+{
+    "@class": "io.seata.rm.datasource.undo.BranchUndoLog",
+    "xid": "192.168.199.116:8091:2052305277",
+    "branchId": 2052305285,
+    "sqlUndoLogs": [
+        "java.util.ArrayList",
+        [
+            {
+                "@class": "io.seata.rm.datasource.undo.SQLUndoLog",
+                "sqlType": "UPDATE",
+                "tableName": "t_account",
+                "beforeImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords",
+                    "tableName": "t_account",
+                    "rows": [
+                        "java.util.ArrayList",
+                        [
+                            {
+                                "@class": "io.seata.rm.datasource.sql.struct.Row",
+                                "fields": [
+                                    "java.util.ArrayList",
+                                    [
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "id",
+                                            "keyType": "PrimaryKey",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "used",
+                                            "keyType": "NULL",
+                                            "type": 3,
+                                            "value": [
+                                                "java.math.BigDecimal",
+                                                300
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "residue",
+                                            "keyType": "NULL",
+                                            "type": 3,
+                                            "value": [
+                                                "java.math.BigDecimal",
+                                                700
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    ]
+                },
+                "afterImage": {
+                    "@class": "io.seata.rm.datasource.sql.struct.TableRecords",
+                    "tableName": "t_account",
+                    "rows": [
+                        "java.util.ArrayList",
+                        [
+                            {
+                                "@class": "io.seata.rm.datasource.sql.struct.Row",
+                                "fields": [
+                                    "java.util.ArrayList",
+                                    [
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "id",
+                                            "keyType": "PrimaryKey",
+                                            "type": -5,
+                                            "value": [
+                                                "java.lang.Long",
+                                                1
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "used",
+                                            "keyType": "NULL",
+                                            "type": 3,
+                                            "value": [
+                                                "java.math.BigDecimal",
+                                                400
+                                            ]
+                                        },
+                                        {
+                                            "@class": "io.seata.rm.datasource.sql.struct.Field",
+                                            "name": "residue",
+                                            "keyType": "NULL",
+                                            "type": 3,
+                                            "value": [
+                                                "java.math.BigDecimal",
+                                                600
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    ]
+                }
+            }
+        ]
+    ]
+}
+```
+
+从上面的数据可知，在阶段二数据是提交异步化的，如果出现错误通过回滚一阶段的日志进行反向补偿，这个反向补偿就是
+通过before_image(前镜像)来进行校验和回滚操作。
+
+当代码继续执行后，再次查看seata数据库中三个表中的数据已经被删除了。
+![img](image/seata-branch-table-data-02.png)
+并且其它三个数据库中的undo_log数据也被删除了，只有accout数据库中的undo_log还存在。根据官网第二阶段的描述
+异步任务阶段的分支提交请求将异步和批量地删除相应 UNDO LOG 记录。
+![img](image/seata-account-database-undo-log-01.png)
+
+综上上面可知，要么同时成功，要么同时失败。
 

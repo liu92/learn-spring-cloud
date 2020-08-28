@@ -19,3 +19,9 @@ spring:
 # 这样就不用在controller中声明一个变量，来指定微服务了。
 service-url:
   nacos-user-service: http://nacos-payment-provider
+
+
+# 激活Sentinel对Feigin的支持
+feign:
+  sentinel:
+    enabled: true
