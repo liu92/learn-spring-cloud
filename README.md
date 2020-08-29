@@ -4397,3 +4397,325 @@ account库中undo_log数据
 
 综上上面可知，要么同时成功，要么同时失败。
 
+31、分布式全局唯一ID以及分布式ID的业务需求
+
+ ID生成规则部分硬性要求：
+``` 
+    1、全局唯一：不能出现重复的ID号，既然是唯一标识，这是最基本要求
+    2、趋势递增： 在mysql的Innodb引擎中使用是聚集索引，由于多数RDBMS使用Btree的数据结构来存储数据，在
+                主键的选择上面我们应该尽量使用有序的主键保证写入性能。
+    3、单调递增： 保证下一个ID一定大于上一个ID，例如事务版本号、IM增量消息、排序等特殊需求
+
+    4、信息安全： 如果id是连续的，恶意用户的扒取工作就非常容易做了，直接按照顺序下载指定URL即可；
+                 如果是订单号就更危险链路，竞争对手可以直接知道我们一天的单量。所以在一些应用场景下，
+                 需要ID无规则不规则，让竞争对手不好猜
+    5、含时间戳： 这样就能够在开发中快速了解这个分布式id的生成时间。
+```
+ID号生成系统的可用性要求：
+  
+     高可用：发送一个获取分布式ID的请求，服务器就要保证99.999%的情况下给我创建一个唯一分布式id。
+     低延迟：发送一个获取分布式ID的请求，服务器就要快，极速。
+     高QPS: 假如并发一口气10万个创建分布式ID请求同时过来，服务器要顶住且要在极短时间内成功创建10万个分布式ID。
+      
+生成分布式ID的演变
+    
+    1 、使用UUID 在只考虑唯一性的情况下, UUID(Universally Unique Identifier)的标准型式包含32个16进制数字，以连字号分为5段，形式为
+     8-4-4-4-12的36个字符。  好处是本地生成性能非常高，没有网络消耗。 
+    但是无序的UUID会导致入库性能变差。为社么变差？ 
+     a、无序，无法预测他的生成顺序，不能生成递增有许的数字。首先分布式ID一般都会作为主键，但是安装mysql官方
+     推荐主键要尽量越短越好，UUID每一个都很长，所以不是很推荐。
+     b、主键，ID作为主键时在特定的环境会存在一些问题。
+       比如做DB主键的场景下，UUID就非常不适用MYSQL官方有明确的建议主键要尽量越短越好36个字符长度的UUID
+       不符合要求。
+     c、索引，B+树索引的分裂
+       既然分布式id是主键，然后主键是包含索引的，然后mysql的索引是通过b+树来实现的，每一次新的UUID数据的插入，
+       为了查询的优化，都会对索引底层的B+树进行修改，因为UUID是无序的，所以每一次UUID数据的插入都会对主键得
+       B+树进行很大的修改，这一点很不好。插入完全无序，不但会导致一些中间节点产生分裂，也会白白创造很多不饱和的节点
+       这样大大降低了数据库插入的性能。  
+      
+    2、使用数据库自增主键
+      a、单机：在分布式里面，数据库的自增ID机制的主要原理是，数据库自增ID的mysql数据库的replace into实现的。
+         这里的repalce into跟insert 功能类似。
+         不同点在于：repalce into 首先尝试插入数据列表中，如果发现已经有此行数据(根据主键或唯一索引判断)则先
+         删除，再插入。否则直接插入新数据。
+         repalce into 的含义是插入一条记录，如果表中唯一索引的值遇到冲突，则替换老数据。
+      b、集群分布式： 数据库自增ID机制适合分布式ID吗？答案是不太合适
+         a、系统水平扩展比较困难，比如定义好了步长和机器台数之后，如果要添加机器该怎么办？假如现在只有一台机器
+         发号是1,2,3,4,5（步长是1），这个时候需要扩容机器一台。可以这样做，把第二台机器的初始值设置得比第一台
+         超过很多，貌似很好，现在想象一下如果我们线上有100台机器，这个时候要扩容该怎么做？简直是噩梦。所以系统水平
+         扩展方案复杂难以实现。
+         b、数据库压力还是很大，每次获取ID都得读写一次数据库，非常影响性能，不符合分布式ID里面的延迟低和要高QPS的
+         规则（再高并发下，如果都去数据库里面获取id，那是非常影响性能的）    
+    3、基于Redis的分布式ID 
+      a、注意再redis集群情况下，同样和Mysql一样需要设置不同的增长步长，同时key一定要设置有效期
+        可以使用redis集群来获取更高的吞吐量。
+        假如一个集群中有5台redis。可以初始化每台redis的值分别是1,2,3,4,5，然后步长都是5.
+        
+        各个redis生成的ID为：
+        1,6,11,16,21
+        2,7,12,17,22
+        3,8,13,18,23
+        4,9,14,19,24
+        5,10,15,20,15   
+       缺点是维护麻烦，要避免redis单点故障，要设置哨兵值守如果某一台机器宕机怎么处理等。
+
+使用twitter的分布式自增ID算法snowflake
+      
+      twitter的分布式雪花算法SnowFlake，经测试每秒能够产生26个自增可排序的ID
+      1、twitter的分布式雪花算法SnowFlake生成id能够按照时间有序生成
+      2、SnowFlake算法生成id的结果是一个64bit大小的整数，为一个Long型（转换成字符串后长度最多19）.
+      3、分布式系统内不会产生ID碰撞（由datacenter和workerId做区分）并且效率较高。
+      
+      分布式系统中和，有一些需要使用创建唯一ID的场景，生成ID的基本要
+      a、在分布式的环境下必须全局且唯一。
+      b、一般都需要单调递增，因为一般唯一ID都会存在数据库，而Innodb的特性就是将内容存储在主键索引树上的
+      叶子节点，而且是考虑到数据库性能，一般生成的id也最好是单掉递增。为了防止ID冲突可以使用36位的UUID，
+      但是UUID有一些缺点，首先它是无序的
+ 
+结构：      
+![img](image/snowflake-structure-01.png  )             
+       
+     【1】第一位：1位标识占用1bit，其值始终是0，表示符号位，正数是0，负数是1，id一般是正数，
+        在这里没有实际作用。因为二进制中最高位是符号位。
+     【2】第二位：时间戳占用41bit，精确到毫秒，总共可以容纳约69 年的时间。41位可以表示2^41-1个数字，
+      如果只有类表示正整数(计算机中正数包哈0)，可以表示的数值范围是0：0至2^41-1,减1是因为可表示的数值
+      范围是从0开始算的，而不是1。也就是所41可以表示2^41-1毫秒的值，转换成年则是2^41-1/(1000*60*60*24*365)=69年
+     
+     【3】第三位：工作机器id占用10bit，其中高位5bit是数据中心ID（datacenterId），
+       低位5bit是工作节点ID（workerId），做多可以容纳1024个节点。10-bit机器可以分别表示1024台机器。
+       如果我们对IDC划分有需求，还可以将10-bit分5-bit给IDC，分5-bit给工作机器。这样就可以表示32个IDC，
+       每个IDC下可以有32台机器，可以根据自身需求定义。可以表示的最大正整数是2^5-1=31，即可以用0、1、2、3...31
+       这32个数字，来表示不同的datacenterId或workerId.
+       
+     【4】第四位：序列号占用12bit，这个值在同一毫秒同一节点上从0开始不断累加，最多可以累加到4095。
+       12个自增序列号可以表示2^12个ID。
+       SnowFlake算法在同一毫秒内最多可以生成多少个全局唯一ID呢？
+       只需要做一个简单的乘法：同一毫秒的ID数量 = 1024 X 4096 = 4194304（QPS）这个数字在绝大多数并发场景下都是够用的。      
+ 
+ 
+ 添加测试雪花算法的类，这是开源的
+```java
+/**
+ *
+ *  Twitter_Snowflake<br>
+ *  SnowFlake的结构如下(每部分用-分开):<br>
+ *  0 - 0000000000 0000000000 0000000000 0000000000 0 - 00000 - 00000 - 000000000000 <br>
+ *  1位标识，由于long基本类型在Java中是带符号的，最高位是符号位，正数是0，负数是1，所以id一般是正数，最高位是0<br>
+ *
+ *  41位时间截(毫秒级)，注意，41位时间截不是存储当前时间的时间截，而是存储时间截的差值（当前时间截 - 开始时间截)
+ *  得到的值），这里的的开始时间截，一般是我们的id生成器开始使用的时间，
+ *  由我们程序来指定的（如下下面程序IdWorker类的startTime属性）。41位的时间截，可以使用69年，年T = (1L << 41) / (1000L * 60 * 60 * 24 * 365) = 69<br>
+ *
+ *  10位的数据机器位，可以部署在1024个节点，包括5位datacenterId和5位workerId<br>
+ *
+ *  12位序列，毫秒内的计数，12位的计数顺序号支持每个节点每毫秒(同一机器，同一时间截)产生4096个ID序号<br>
+ *  加起来刚好64位，为一个Long型。<br>
+ *  SnowFlake的优点是，整体上按照时间自增排序，并且整个分布式系统内不会产生ID碰撞(由数据中心ID和机器ID作区分)，并且效率较高，经测试，SnowFlake每秒能够产生26万ID左右。
+ * @ClassName: SnowFlakeIdWorker
+ * @Description:
+ * @Author: lin
+ * @Date: 2020/8/29 12:54
+ * History:
+ * @<version> 1.0
+ */
+public class SnowFlakeIdWorker {
+
+    /**
+     * 工作机器ID(0~31)
+     */
+    private final long workerId;
+
+    /**
+     * 数据中心ID(0~31)
+     */
+    private final long dataCenterId;
+
+    /**
+     * 毫秒内序列(0~4095)
+     */
+    private long sequence = 0L;
+
+    /**
+     * 上次生成ID的时间截
+     */
+    private  long lastTimeStamp = -1L;
+
+    /**
+     * 起始的时间戳(2020-08-29)
+     */
+    private final static long startTimestamp = 1598676988000L;
+
+    //***************每一部分占用的位数***************
+    /**
+     * 机器id所占的位数
+     */
+    private final static long workerIdBits = 5L;
+    /**
+     * 数据中心id所占的位数
+     */
+    private final static long dataCenterIdBits = 5L;
+
+    /**
+     * 序列号占用的位数
+     */
+    private final static long sequenceBit = 12L;
+
+    //***************************每一部分的最大值*********************************
+    /**
+     * 支持的最大机器id，结果是31 (这个移位算法可以很快的计算出几位二进制数所能表示的最大十进制数)
+     */
+    private final long maxWorkerId = ~(-1L << workerIdBits);
+
+    /**
+     * 支持的最大数据标识id，结果是31
+     */
+    private final long maxDataCenterId = ~(-1L << dataCenterIdBits);
+
+    /**
+     * 生成序列的掩码，这里为4095 (0b111111111111=0xfff=4095)
+     */
+    private final long sequenceMask = ~(-1L << sequenceBit);
+
+
+    //***********************每一部分向左的位移*******************************
+    /**
+     * 机器ID向左移12位
+     */
+    private final long workerIdShift = sequenceBit;
+
+    /**
+     * 数据标识id向左移17位(12+5)
+     */
+    private final long dataCenterIdShift = sequenceBit + workerIdBits;
+
+    /**
+     * 时间截向左移22位(5+5+12)
+     */
+    private final long timeStampLeftShift = sequenceBit + workerIdBits +
+            dataCenterIdBits;
+
+    /**
+     * 构造函数
+     * @param workerId 工作ID(0~31)
+     * @param dataCenterId 数据中心(0~31)
+     */
+    public SnowFlakeIdWorker(long workerId, long dataCenterId){
+       if(workerId > maxWorkerId || workerId < 0){
+           throw new IllegalArgumentException(String.format("worker Id " +
+                   "can't be greater than %d or less than 0", maxWorkerId));
+       }
+        if (dataCenterId > maxDataCenterId || dataCenterId < 0) {
+            throw new IllegalArgumentException(String.format("dataCenter Id" +
+                    " can't be greater than %d or less than 0", maxDataCenterId));
+        }
+        this.workerId = workerId;
+        this.dataCenterId = dataCenterId;
+    }
+
+    /**
+     * 获得下一个ID (该方法是线程安全的)
+     * @return
+     */
+    public synchronized  long nextId(){
+      long timeStamp = timeGen();
+      //如果当前时间小于上一次ID生成的时间戳，说明系统时钟回退过这个时候应当抛出异常
+      if(timeStamp < lastTimeStamp){
+        throw new RuntimeException(
+                String.format("Clock moved backwards.  Refusing to generate id for %d milliseconds", lastTimeStamp - timeStamp));
+      }
+
+      //如果是同一时间生成的，则进行毫秒内序列
+      if(lastTimeStamp == timeStamp){
+          sequence = (sequence + 1) & sequenceMask;
+          if(sequence == 0){
+              //阻塞到下一个毫秒,获得新的时间戳
+              timeStamp = tilNextMillis(lastTimeStamp);
+          }
+      }
+      //上次生成ID的时间截
+      lastTimeStamp = timeStamp;
+
+      //移位并通过或运算拼到一起组成64位的ID
+        return  ((timeStamp - startTimestamp) << timeStampLeftShift)
+                | (dataCenterId << dataCenterIdShift)
+                | (workerId << workerIdShift)
+                | sequence;
+
+    }
+
+    /**
+     * 阻塞到下一个毫秒，直到获得新的时间戳
+     *
+     * @param lastTimestamp 上次生成ID的时间截
+     * @return 当前时间戳
+     */
+    protected long tilNextMillis(long lastTimestamp) {
+        long timestamp = timeGen();
+        while (timestamp <= lastTimestamp) {
+            timestamp = timeGen();
+        }
+        return timestamp;
+    }
+
+    /**
+     * 返回以毫秒为单位的当前时间
+     *
+     * @return 当前时间(毫秒)
+     */
+    protected long timeGen() {
+        return System.currentTimeMillis();
+    }
+
+
+    //==============================Test=============================================
+
+    /**
+     * 测试
+     */
+    public static void main(String[] args) {
+        SnowFlakeIdWorker idWorker = new SnowFlakeIdWorker(0, 0);
+        for (int i = 0; i < 1000; i++) {
+            long id = idWorker.nextId();
+            System.out.println(Long.toBinaryString(id) + "\t" + Long.toBinaryString(id).length());
+            System.out.println(id);
+        }
+    }
+
+}
+ 
+```
+
+雪花算法优缺点：
+     
+     优点：毫秒数在高位，自增序列在地位，整个ID都是趋势递增的。不依赖数据库等第三方系统，以服务的方式部署，
+     稳定性更高，生成ID的性能也是非常高的。可以根据自身业务特性分配bit位，非常灵活。
+     
+     缺点：依赖机器时钟，如果机器时钟回拨，会导致重复ID生成，在单机上是递增的，但是由于设计到分布式环境，
+     每台机器上的时钟可能不可能完全同步，有时候会出现不是全局递增的情况。（此缺点可以任务无所谓，一般分布式
+     ID只要求趋势递增，并不会严格要求递增，90%的需求都只要求趋势递增）
+     
+     解决这个时钟问题又： 百度开源的分布式唯一ID生成器UidGenerator
+                        leaf---美团点评分布式ID生成系统。 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+               
+               
+               
+               
+               
+               
+               
+               
+               
+                   
