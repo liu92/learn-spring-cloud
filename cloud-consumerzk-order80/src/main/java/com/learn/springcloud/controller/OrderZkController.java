@@ -26,13 +26,13 @@ public class OrderZkController {
     /**
      * 取注册到zookeeper中的微服务名
      */
-    public static final  String INVOKE_URL = "http://cloud-provider-payment";
+    public static final String INVOKE_URL = "http://cloud-provider-payment";
 
     @Resource
     private RestTemplate restTemplate;
 
     @RequestMapping(value = "/consumer/payment/zk")
-    public String paymentInfo(){
+    public String paymentInfo() {
         return restTemplate.getForObject(INVOKE_URL + "/payment/zk",
                 String.class);
 

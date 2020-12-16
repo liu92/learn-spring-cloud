@@ -6,6 +6,7 @@ import java.util.List;
 
 /**
  * 自行实现负载均衡算法接口
+ *
  * @ClassName: LoadBalancer
  * @Description:
  * @Author: lin
@@ -17,6 +18,7 @@ public interface LoadBalancer {
 
     /**
      * 定义服务实例，也就是微服务中的 服务实例
+     *
      * @param serviceInstances
      * @return
      */

@@ -2,6 +2,7 @@ import org.openjdk.jol.info.ClassLayout;
 
 /**
  * java 查看class MarkWord，JOL工具，ClassLayout，openjdk
+ *
  * @ClassName: Test
  * @Description:
  * @Author: lin
@@ -19,7 +20,7 @@ public class Test {
 
         System.out.println(ClassLayout.parseInstance(obj).toPrintable());
 
-        synchronized (obj){
+        synchronized (obj) {
             System.out.println(ClassLayout.parseInstance(obj).toPrintable());
         }
     }

@@ -5,35 +5,36 @@ import io.seata.rm.datasource.DataSourceProxy;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
+import org.mybatis.spring.annotation.MapperScan;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 
 /**
+ * Seata管理数据源
+ *
  * @ClassName: MyBatisConfig
  * @Description:
  * @Author: lin
- * @Date: 2020/8/26 17:37
+ * @Date: 2020/8/26 15:37
  * History:
  * @<version> 1.0
  */
 @Configuration
-public class MyBatisConfig {
-
+@MapperScan("com.learn.springcloud.dao")
+public class OrderMyBatisConfig {
 
     @Value("${mybatis.mapper-locations}")
     private String mapperLocations;
 
-    /**
-     * @param sqlSessionFactory SqlSessionFactory
-     * @return SqlSessionTemplate
-     */
+
     @Bean
     public SqlSessionTemplate sqlSessionTemplate(SqlSessionFactory sqlSessionFactory) {
         return new SqlSessionTemplate(sqlSessionFactory);
@@ -51,25 +52,24 @@ public class MyBatisConfig {
         return new DruidDataSource();
     }
 
+
     /**
      * 构造datasource代理对象，替换原来的datasource
      *
-     * @param druidDataSource
+     * @param dataSource
      * @return
      */
-    @Primary
-    @Bean("dataSource")
-    public DataSourceProxy dataSourceProxy(DataSource druidDataSource) {
-        return new DataSourceProxy(druidDataSource);
+    @Bean
+    public DataSourceProxy dataSourceProxy(DataSource dataSource) {
+        return new DataSourceProxy(dataSource);
     }
 
-    @Bean(name = "sqlSessionFactory")
-    public SqlSessionFactory sqlSessionFactoryBean(DataSourceProxy dataSourceProxy) throws Exception {
+    @Bean
+    public SqlSessionFactory sqlSessionFactoryBean(DataSourceProxy dataSourceProxy) throws IOException {
         SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
         bean.setDataSource(dataSourceProxy);
-        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        bean.setMapperLocations(resolver.getResources(mapperLocations));
-
+        ResourcePatternResolver patternResolver = new PathMatchingResourcePatternResolver();
+        bean.setMapperLocations(patternResolver.getResources(mapperLocations));
         SqlSessionFactory factory;
         try {
             factory = bean.getObject();
@@ -78,4 +78,6 @@ public class MyBatisConfig {
         }
         return factory;
     }
+
+
 }

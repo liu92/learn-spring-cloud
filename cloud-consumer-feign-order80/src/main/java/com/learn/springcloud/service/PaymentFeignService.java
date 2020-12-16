@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 /**
  * 定义接口，这个接口添加@FeignClient 注解来调用 provider服务
+ *
  * @ClassName: PaymentFeignService
  * @Description:
  * @Author: lin
@@ -23,6 +24,7 @@ public interface PaymentFeignService {
 
     /**
      * 根据id查询
+     *
      * @param id
      * @return
      */
@@ -31,6 +33,7 @@ public interface PaymentFeignService {
 
     /**
      * 超时访问
+     *
      * @return
      */
     @GetMapping(value = "/payment/feign/timeout")

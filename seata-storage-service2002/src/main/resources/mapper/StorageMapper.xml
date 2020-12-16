@@ -8,12 +8,12 @@
         <result column="product_id" property="productId" jdbcType="BIGINT"/>
         <result column="total" property="total" jdbcType="INTEGER"/>
         <result column="used" property="used" jdbcType="INTEGER"/>
-        <result column="status" property="residue" jdbcType="INTEGER"/>
+        <result column="residue" property="residue" jdbcType="INTEGER"/>
     </resultMap>
 
     <!--扣减库存，已使用数量增加，剩余数量减少-->
     <update id="decrease">
         update t_storage set used =used+#{count}, residue=residue-#{count}
-         where product_id =#{productId};
+        where product_id =#{productId};
     </update>
 </mapper>

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 公用返回结果
+ *
  * @ClassName: CommonResult
  * @Description:
  * @Author: lin
@@ -23,10 +24,9 @@ public class CommonResult<T> {
     private T data;
 
 
-    public  CommonResult(Integer code, String message){
+    public CommonResult(Integer code, String message) {
         this(code, message, null);
     }
-
 
 
 }

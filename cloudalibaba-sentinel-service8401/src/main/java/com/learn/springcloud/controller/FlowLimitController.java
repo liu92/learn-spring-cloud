@@ -23,10 +23,11 @@ public class FlowLimitController {
 
     /**
      * 方法testA
+     *
      * @return
      */
     @GetMapping("/testA")
-    public String testA(){
+    public String testA() {
 //        try {
 //            TimeUnit.MILLISECONDS.sleep(1000);
 //        } catch (InterruptedException e) {
@@ -36,12 +37,12 @@ public class FlowLimitController {
     }
 
     @GetMapping("/testB")
-    public String testB(){
+    public String testB() {
         return "testB   -----";
     }
 
     @GetMapping("/testD")
-    public String testD(){
+    public String testD() {
         try {
             TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
@@ -52,28 +53,28 @@ public class FlowLimitController {
     }
 
     @GetMapping("/testException")
-    public String testException(){
+    public String testException() {
         log.info("testException 异常比例");
-        int age = 10 /0 ;
+        int age = 10 / 0;
         return "testException -----";
     }
 
     @GetMapping("/testE")
-    public String testExceptionCount(){
+    public String testExceptionCount() {
         log.info("testExceptionCount 异常数");
-        int age = 10 /0 ;
+        int age = 10 / 0;
         return "testExceptionCount -----";
     }
 
     @GetMapping("/testHotKey")
     @SentinelResource(value = "testHotKey", blockHandler = "dealTestHotKey")
     public String testHotKey(@RequestParam(value = "p1", required = false) String p1,
-                             @RequestParam(value = "p2", required = false) String p2){
+                             @RequestParam(value = "p2", required = false) String p2) {
 //        int age = 10 /0;
         return "testHotKey -----";
     }
 
-    public String dealTestHotKey(String p1, String p2, BlockException blockException){
+    public String dealTestHotKey(String p1, String p2, BlockException blockException) {
 
         // sentinel系统模式的提示：Blocked by Sentinel(flow limiting)
         return "dealTestHotKey---------";

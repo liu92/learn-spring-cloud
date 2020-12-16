@@ -31,35 +31,32 @@ public class OrderController {
 
     /**
      * 创建订单
+     *
      * @param order
      * @return
      */
     @GetMapping("/order/create")
-    public CommonResult create(Order order){
+    public CommonResult create(Order order) {
         orderService.create(order);
-        return  new CommonResult(200, "订单创建成功");
+        return new CommonResult(200, "订单创建成功");
     }
 
 
     @GetMapping(value = "/snowflake")
-   public  String getIdBySnowFlake(){
-       ThreadPoolExecutor threadPool = new ThreadPoolExecutor(5,
-               20,60, TimeUnit.SECONDS,new LinkedBlockingDeque<>(10),
-               new DefaultThreadFactory("-动态线程数"));
-       int count = 20;
-       for (int i = 0; i < count ; i++) {
-           threadPool.submit(()->{
-               System.out.println(idGeneratorSnowflake.snowflakeId() + "\t");
-           });
-       }
-       threadPool.shutdown();
-       
-       return "hello snowflake";
-   }
+    public String getIdBySnowFlake() {
+        ThreadPoolExecutor threadPool = new ThreadPoolExecutor(5,
+                20, 60, TimeUnit.SECONDS, new LinkedBlockingDeque<>(10),
+                new DefaultThreadFactory("-动态线程数"));
+        int count = 20;
+        for (int i = 0; i < count; i++) {
+            threadPool.submit(() -> {
+                System.out.println(idGeneratorSnowflake.snowflakeId() + "\t");
+            });
+        }
+        threadPool.shutdown();
 
-
-
-
+        return "hello snowflake";
+    }
 
 
 }

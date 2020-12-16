@@ -8,6 +8,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * 库存模块，主启动类
+ *
  * @ClassName: StorageMainApp2002
  * @Description:
  * @Author: lin

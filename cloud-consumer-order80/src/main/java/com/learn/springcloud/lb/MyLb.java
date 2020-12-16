@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 实现接口，并在这个方法里面写Ribbon轮询算法
+ *
  * @ClassName: MyLb
  * @Description:
  * @Author: lin
@@ -16,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @<version> 1.0
  */
 @Component
-public class MyLb implements LoadBalancer{
+public class MyLb implements LoadBalancer {
     /**
      * 定义一个变量，这个变量再 进行比较并设置的时候需要用
      */
@@ -24,12 +25,13 @@ public class MyLb implements LoadBalancer{
 
     /**
      * 这个方法的目的是获取 就是获取rest接口第几次请求数
+     *
      * @return
      */
-    public final  int getAndIncrement(){
+    public final int getAndIncrement() {
         int current = 0;
         int next = 0;
-        do{
+        do {
             //获取当前值
             current = this.atomicInteger.get();
             //判断当前是否超过整形int的最大值，如果超过就从0重新开始，如果没有那么就+1；
@@ -37,13 +39,14 @@ public class MyLb implements LoadBalancer{
             next = current >= maxSize ? 0 : current + 1;
             //自旋操作
             // 如果内存值和当前值相同，那么久返回next。 这里取反 就表示不在进行循环操作了
-        }while (!atomicInteger.compareAndSet(current, next));
+        } while (!atomicInteger.compareAndSet(current, next));
         System.out.println("****第几次访问,次数next:" + next);
-        return  next;
+        return next;
     }
 
     /**
      * 负载均衡算法：rest接口第几次请求数 % 服务器集群总数量 = 实际调用服务器位置下标，每次服务重启后rest接口计数从1开始。
+     *
      * @param serviceInstances
      * @return
      */

@@ -49,19 +49,21 @@ public class OrderHystrixController {
 
     /**
      * 处理访问超时，兜底方案
+     *
      * @param id
      * @return
      */
-    public String payment_TimeOutHandler(Integer id){
+    public String payment_TimeOutHandler(Integer id) {
         return "我是消费者80,对方支付系统繁忙请10秒种后再试或者自己运行出错请检查自己,o(╥﹏╥)o";
     }
 
 
     /**
      * global fallback
+     *
      * @return
      */
-    public String payment_Global_FallbackMethod(){
-        return  "Global异常处理信息,请稍后重试.o(╥﹏╥)o";
+    public String payment_Global_FallbackMethod() {
+        return "Global异常处理信息,请稍后重试.o(╥﹏╥)o";
     }
 }

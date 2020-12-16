@@ -16,28 +16,28 @@ public class DefaultThreadFactory implements ThreadFactory {
 
     private static ThreadGroup group;
 
-    private final  AtomicInteger threadNumber = new AtomicInteger(1);
+    private final AtomicInteger threadNumber = new AtomicInteger(1);
 
     private String namePrefix;
 
-    public DefaultThreadFactory(){}
-
-    public DefaultThreadFactory(String name){
-        SecurityManager s = System.getSecurityManager();
-        group = (s !=null ) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
-        namePrefix = "pool-"+POOL_NUMBER.getAndIncrement()+name+"-thread";
+    public DefaultThreadFactory() {
     }
 
+    public DefaultThreadFactory(String name) {
+        SecurityManager s = System.getSecurityManager();
+        group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+        namePrefix = "pool-" + POOL_NUMBER.getAndIncrement() + name + "-thread";
+    }
 
 
     @Override
     public Thread newThread(Runnable r) {
-        Thread t = new Thread(group,r,namePrefix + threadNumber.getAndIncrement());
-        if(t.isDaemon()){
+        Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement());
+        if (t.isDaemon()) {
             t.setDaemon(true);
         }
 
-        if(t.getPriority() != Thread.NORM_PRIORITY){
+        if (t.getPriority() != Thread.NORM_PRIORITY) {
             t.setPriority(Thread.NORM_PRIORITY);
         }
         return t;

@@ -10,6 +10,7 @@ import javax.annotation.PostConstruct;
 
 /**
  * 使用hutool工具包来生成雪花算法
+ *
  * @ClassName: IdGeneratorSnowflake
  * @Description:
  * @Author: lin
@@ -20,33 +21,33 @@ import javax.annotation.PostConstruct;
 @Component
 @Slf4j
 public class IdGeneratorSnowflake {
-     private long workerId = 0;
-     private long dataCenterId = 1;
+    private long workerId = 0;
+    private long dataCenterId = 1;
 
-     private Snowflake snowflake = IdUtil.createSnowflake(workerId ,dataCenterId);
+    private Snowflake snowflake = IdUtil.createSnowflake(workerId, dataCenterId);
 
-     @PostConstruct
-     public void init(){
+    @PostConstruct
+    public void init() {
         try {
-             workerId = NetUtil.ipv4ToLong(NetUtil.getLocalhostStr());
-             log.info("当前机器的workerId: {}", workerId);
-        }catch (Exception e){
-              e.printStackTrace();
-              log.info("当前机器的workerId获取失败",e);
-              workerId = NetUtil.getLocalhostStr().hashCode();
+            workerId = NetUtil.ipv4ToLong(NetUtil.getLocalhostStr());
+            log.info("当前机器的workerId: {}", workerId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.info("当前机器的workerId获取失败", e);
+            workerId = NetUtil.getLocalhostStr().hashCode();
         }
 
-     }
+    }
 
 
-     public synchronized long snowflakeId() {
-          return snowflake.nextId();
-     }
+    public synchronized long snowflakeId() {
+        return snowflake.nextId();
+    }
 
-     public synchronized long snowflakeId(long workerId, long dataCenterId) {
-          snowflake = IdUtil.createSnowflake(workerId, dataCenterId);
-          return snowflake.nextId();
-     }
+    public synchronized long snowflakeId(long workerId, long dataCenterId) {
+        snowflake = IdUtil.createSnowflake(workerId, dataCenterId);
+        return snowflake.nextId();
+    }
 
 
     public static void main(String[] args) {

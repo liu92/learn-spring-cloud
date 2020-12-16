@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 /**
  * 这里的domain 就是和数据库表映射的实体
+ *
  * @ClassName: Order
  * @Description: 订单实体类
  * @Author: lin

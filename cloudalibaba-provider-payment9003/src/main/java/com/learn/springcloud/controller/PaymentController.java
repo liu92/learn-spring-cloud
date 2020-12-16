@@ -21,7 +21,7 @@ import java.util.Map;
  */
 @RestController
 public class PaymentController {
-    
+
     @Value("${server.port}")
     private String serverPort;
 

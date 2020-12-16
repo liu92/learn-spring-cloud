@@ -13,7 +13,7 @@
     </resultMap>
 
     <insert id="create" parameterType="com.learn.springcloud.domain.Order"
-            useGeneratedKeys="true"  keyProperty="id">
+            useGeneratedKeys="true" keyProperty="id">
         insert into t_order(user_id,product_id,count,money,status)
         values (#{userId},#{productId},#{count},#{money},0);
     </insert>

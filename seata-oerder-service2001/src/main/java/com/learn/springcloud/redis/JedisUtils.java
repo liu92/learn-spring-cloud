@@ -15,30 +15,30 @@ import java.util.ResourceBundle;
  * @<version> 1.0
  */
 public class JedisUtils {
-   private static JedisPool jp =null;
-   private static String host = null;
-   private static int port;
-   private static  int maxTotal;
-   private static  int maxIdle;
+    private static JedisPool jp = null;
+    private static String host = null;
+    private static int port;
+    private static int maxTotal;
+    private static int maxIdle;
 
-   static {
-       ResourceBundle rb = ResourceBundle.getBundle("redis");
-       host = rb.getString("redis.host");
-       port = Integer.parseInt(rb.getString("redis.port"));
-       maxTotal = Integer.parseInt(rb.getString("redis.maxTotal"));
-       maxIdle = Integer.parseInt(rb.getString("redis.maxIdle"));
+    static {
+        ResourceBundle rb = ResourceBundle.getBundle("redis");
+        host = rb.getString("redis.host");
+        port = Integer.parseInt(rb.getString("redis.port"));
+        maxTotal = Integer.parseInt(rb.getString("redis.maxTotal"));
+        maxIdle = Integer.parseInt(rb.getString("redis.maxIdle"));
 
-       JedisPoolConfig jpc = new JedisPoolConfig();
-       jpc.setMaxTotal(maxTotal);
-       jpc.setMaxIdle(10);
-       jp = new JedisPool(jpc, host, port);
-   }
+        JedisPoolConfig jpc = new JedisPoolConfig();
+        jpc.setMaxTotal(maxTotal);
+        jpc.setMaxIdle(10);
+        jp = new JedisPool(jpc, host, port);
+    }
 
-   public  static Jedis getJedis(){
-       return  jp.getResource();
-   }
+    public static Jedis getJedis() {
+        return jp.getResource();
+    }
 
-   public static void main(String[] args) {
-       JedisUtils.getJedis();
-   }
+    public static void main(String[] args) {
+        JedisUtils.getJedis();
+    }
 }

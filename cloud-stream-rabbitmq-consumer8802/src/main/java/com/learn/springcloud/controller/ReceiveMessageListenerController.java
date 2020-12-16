@@ -25,13 +25,13 @@ public class ReceiveMessageListenerController {
     private String serverPort;
 
     /**
-     *  @StreamListener(Sink.INPUT) 消息接收，指定通道
-     *  监听的是Sink.INPUT 输入源
      * @param message
+     * @StreamListener(Sink.INPUT) 消息接收，指定通道
+     * 监听的是Sink.INPUT 输入源
      */
     @StreamListener(Sink.INPUT)
-    public void input(Message<String> message){
-        System.out.println("消费者1号，----->接收到的消息："+
-                message.getPayload() +"\t port:" + serverPort);
+    public void input(Message<String> message) {
+        System.out.println("消费者1号，----->接收到的消息：" +
+                message.getPayload() + "\t port:" + serverPort);
     }
 }

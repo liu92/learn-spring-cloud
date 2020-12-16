@@ -26,10 +26,10 @@ public class MyLogGateWayFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String uName = request.getQueryParams().getFirst("uName");
-        if(null == uName){
-           log.info("*********用户名为null,非法用户o(╥﹏╥)o");
-           exchange.getResponse().setStatusCode(HttpStatus.NOT_ACCEPTABLE);
-           return exchange.getResponse().setComplete();
+        if (null == uName) {
+            log.info("*********用户名为null,非法用户o(╥﹏╥)o");
+            exchange.getResponse().setStatusCode(HttpStatus.NOT_ACCEPTABLE);
+            return exchange.getResponse().setComplete();
         }
         return chain.filter(exchange);
     }

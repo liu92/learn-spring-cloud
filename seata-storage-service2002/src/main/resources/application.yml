@@ -2,13 +2,15 @@ server:
   port: 2002
 
 spring:
+  #  profiles:
+  #    active: test
   application:
     name: seata-storage-service
   cloud:
     alibaba:
       seata:
         # 自定义事务组名称需要与seata-server中的对应
-        tx-service-group: prex_tx_group
+        tx-service-group: my_test_tx_group
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
@@ -20,6 +22,38 @@ spring:
     url: jdbc:mysql://localhost:3306/seata_storage?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8
     username: root
     password: 123
+
+
+#seata:
+#  enabled: true
+#  application-id: ${spring.application.name}
+#  tx-service-group: storage-service-group
+#  enable-auto-data-source-proxy: true
+#  service:
+#    vgroup-mapping:
+#      storage-service-group: default  # 此处key需要与tx-service-group的value一致，否则会报 no available service 'null' found, please make sure registry config correct 异常
+#    grouplist:
+#      default: 127.0.0.1:8091
+#    enable-degrade: false
+#    disable-global-transaction: false
+#  config:
+#    type: nacos
+#    nacos:
+#      namespace:
+#      serverAddr: 127.0.0.1:8848
+#      group: SEATA_GROUP
+#      userName: ""
+#      password: ""
+#  registry:
+#    type: nacos
+#    nacos:
+#      application: seata-order-service  # 此处名称需和 seata server 服务端 application一致,否则会报 no available service 'null' found, please make sure registry config correct 异常
+#      server-addr: 127.0.0.1:8848
+#      namespace:
+#      userName: ""
+#      password: ""
+
+
 feign:
   hystrix:
     enabled: false

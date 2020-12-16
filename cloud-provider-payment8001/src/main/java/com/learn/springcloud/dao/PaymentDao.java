@@ -18,13 +18,13 @@ public interface PaymentDao {
 
     /**
      * 插入
+     *
      * @param payment
      */
     int create(Payment payment);
 
 
     /**
-     *
      * @param id
      * @return
      */

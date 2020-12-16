@@ -33,7 +33,7 @@ public class PaymentService {
      * 超时访问,这个模拟是一个复杂的业务，需要处理时间长一些
      * 兜底处理方法，如果访问超时
      * HystrixCommand:一旦调用服务方法失败并抛出了错误信息后,
-     *  会自动调用@HystrixCommand标注好的fallbckMethod调用类中的指定方法
+     * 会自动调用@HystrixCommand标注好的fallbckMethod调用类中的指定方法
      * 在添加了@HystrixCommand注解后需要到 主启动类中去添加注解@EnableCircuitBreaker来激活。
      *
      * @param id
@@ -41,7 +41,7 @@ public class PaymentService {
      */
     @HystrixCommand(fallbackMethod = "payment_TimeOutHandler", commandProperties = {
             @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds",
-            value = "3000")
+                    value = "3000")
     })
     public String paymentInfo_TimeOut(Integer id) {
         //故意制造计算异常。
@@ -52,19 +52,19 @@ public class PaymentService {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return "线程池：" + Thread.currentThread().getName()+" paymentInfo_Timeout, id: "
-                + id +"\t" + "O(∩_∩)O哈哈~" + "耗时(秒):" + timeNumber;
+        return "线程池：" + Thread.currentThread().getName() + " paymentInfo_Timeout, id: "
+                + id + "\t" + "O(∩_∩)O哈哈~" + "耗时(秒):" + timeNumber;
     }
 
     /**
      * 处理访问超时，兜底方案
+     *
      * @param id
      * @return
      */
-    public String payment_TimeOutHandler(Integer id){
+    public String payment_TimeOutHandler(Integer id) {
         return "线程池:" + Thread.currentThread().getName() + " 系统繁忙或运行错误,请稍后重试,id:" + id + "\t" + "o(╥﹏╥)o";
     }
-
 
 
     //====================服务熔断
@@ -73,6 +73,7 @@ public class PaymentService {
     /**
      * 在10秒窗口期中10次请求有6次是请求失败的(失败率超过60%), 断路器将起作用。
      * 相关的配置信息参数都在 HystrixCommandProperties 类中可以看到
+     *
      * @param id
      * @return
      */
@@ -84,13 +85,13 @@ public class PaymentService {
             @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "60")// 失败率达到多少后跳闸
     }
     )
-   public String paymentCircuitBreaker(@PathVariable("id") Integer id){
-       if (id < 0) {
-           throw new RuntimeException("*****id不能是负数");
-       }
-       String serialNumber = IdUtil.simpleUUID();
-       return Thread.currentThread().getName() + "\t" + "调用成功,流水号:" + serialNumber;
-   }
+    public String paymentCircuitBreaker(@PathVariable("id") Integer id) {
+        if (id < 0) {
+            throw new RuntimeException("*****id不能是负数");
+        }
+        String serialNumber = IdUtil.simpleUUID();
+        return Thread.currentThread().getName() + "\t" + "调用成功,流水号:" + serialNumber;
+    }
 
     public String paymentCircuitBreaker_fallback(@PathVariable("id") Integer id) {
         return "id 不能负数,请稍后重试,o(╥﹏╥)o id:" + id;

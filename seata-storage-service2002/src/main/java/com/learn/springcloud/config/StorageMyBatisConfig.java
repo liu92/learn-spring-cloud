@@ -17,6 +17,7 @@ import javax.sql.DataSource;
 
 /**
  * seata管理数据源
+ *
  * @ClassName: MyBatisConfig
  * @Description:
  * @Author: lin
@@ -25,7 +26,7 @@ import javax.sql.DataSource;
  * @<version> 1.0
  */
 @Configuration
-public class MyBatisConfig {
+public class StorageMyBatisConfig {
 
     @Value("${mybatis.mapper-locations}")
     private String mapperLocations;

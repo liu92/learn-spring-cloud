@@ -5,15 +5,15 @@ spring:
   application:
     name: cloud-config-center #注册进Eureka服务器的微服务名
   cloud:
-   config:
-     server:
-       git:
-#         uri: git@github.com:liu92/spring-cloud-config.git #github上面的git仓库名字
-         uri: https://github.com/liu92/spring-cloud-config
-         search-paths:
-           - springcloud-config
-     #读取分支
-     label: master
+    config:
+      server:
+        git:
+          #         uri: git@github.com:liu92/spring-cloud-config.git #github上面的git仓库名字
+          uri: https://github.com/liu92/spring-cloud-config
+          search-paths:
+            - springcloud-config
+      #读取分支
+      label: master
   rabbitmq:
     host: localhost
     username: guest
@@ -25,9 +25,9 @@ eureka:
   client:
     service-url:
       #集群版
-#      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
+      #      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/
       #单机版
-       defaultZone: http://eureka7001.com:7001/eureka/
+      defaultZone: http://eureka7001.com:7001/eureka/
 #      defaultZone: http://localhost:7001/eureka/
 
 
@@ -36,5 +36,5 @@ management:
   endpoints:
     web:
       exposure:
-                # 配置bus-refresh，那么post执行 就直接 post bus-refresh就可以了
+        # 配置bus-refresh，那么post执行 就直接 post bus-refresh就可以了
         include: "bus-refresh"

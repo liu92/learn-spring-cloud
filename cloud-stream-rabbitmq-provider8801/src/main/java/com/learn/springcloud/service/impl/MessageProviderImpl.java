@@ -16,7 +16,6 @@ import java.util.UUID;
  * @Date: 2020/8/21 16:15
  * History:
  * @<version> 1.0
- *
  * @EnableBinding 可以理解为我们要定义一个消息生产者的发送管道
  */
 @EnableBinding(Source.class) //定义消息的推送管道

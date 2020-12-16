@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * @<version> 1.0
  */
 @Component
-public class PaymentFallbackService implements PaymentService{
+public class PaymentFallbackService implements PaymentService {
 
     @Override
     public CommonResult<Payment> paymentSQL(Long id) {

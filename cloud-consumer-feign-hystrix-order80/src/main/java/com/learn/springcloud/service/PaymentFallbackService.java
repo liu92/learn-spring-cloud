@@ -11,17 +11,17 @@ import org.springframework.stereotype.Component;
  * @<version> 1.0
  */
 @Component
-public class PaymentFallbackService implements  PaymentHystrixService{
+public class PaymentFallbackService implements PaymentHystrixService {
 
     @Override
     public String paymentInfo_OK(Integer id) {
-        String result ="------PaymentFallbackService fall back-paymentInfo_OK, o(╥﹏╥)o";
+        String result = "------PaymentFallbackService fall back-paymentInfo_OK, o(╥﹏╥)o";
         return result;
     }
 
     @Override
     public String paymentInfo_TimeOut(Integer id) {
-        String result ="----PaymentFallbackService fall back-paymentInfo_TimeOut,o(╥﹏╥)o";
+        String result = "----PaymentFallbackService fall back-paymentInfo_TimeOut,o(╥﹏╥)o";
         return result;
     }
 }

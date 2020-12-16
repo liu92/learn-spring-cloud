@@ -17,23 +17,13 @@ import javax.annotation.Resource;
 @RestController
 public class SendMessageController {
 
-  @Resource
-  private IMessageProvider messageProvider;
+    @Resource
+    private IMessageProvider messageProvider;
 
-  @GetMapping(value = "/sendMessage")
-  public String sendMessage(){
-      return  messageProvider.send();
-  }
-
-
-
-
-
-
-
-
-
-
+    @GetMapping(value = "/sendMessage")
+    public String sendMessage() {
+        return messageProvider.send();
+    }
 
 
 }

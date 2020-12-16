@@ -15,6 +15,7 @@ import javax.sql.DataSource;
 
 /**
  * 使用seata对数据源进行代理
+ *
  * @ClassName: DataSourceProxyConfig
  * @Description:
  * @Author: lin
@@ -29,34 +30,36 @@ public class DataSourceProxyConfig {
     private String mapperLocations;
 
     /**
-     *  从配置文件获取属性构造datasource，注意前缀，这里用的是druid，根据自己情况配置,
-     *  原生datasource前缀取"spring.datasource"
+     * 从配置文件获取属性构造datasource，注意前缀，这里用的是druid，根据自己情况配置,
+     * 原生datasource前缀取"spring.datasource"
+     *
      * @return
      */
     @Bean
     @ConfigurationProperties(prefix = "spring.datasource1")
-    public DataSource druidDataSource(){
+    public DataSource druidDataSource() {
         return new DruidDataSource();
     }
 
 
     /**
      * 构造datasource代理对象，替换原来的datasource
+     *
      * @param dataSource
      * @return
      */
     @Bean
-    public DataSourceProxy dataSourceProxy(DataSource dataSource){
-        return  new DataSourceProxy(dataSource);
+    public DataSourceProxy dataSourceProxy(DataSource dataSource) {
+        return new DataSourceProxy(dataSource);
     }
 
     @Bean
     public SqlSessionFactory sqlSessionFactoryBean(DataSourceProxy dataSourceProxy) throws Exception {
-        SqlSessionFactoryBean bean =new SqlSessionFactoryBean();
+        SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
         bean.setDataSource(dataSourceProxy);
         ResourcePatternResolver patternResolver = new PathMatchingResourcePatternResolver();
         bean.setMapperLocations(patternResolver.getResources(mapperLocations));
         bean.setTransactionFactory(new SpringManagedTransactionFactory());
-        return  bean.getObject();
+        return bean.getObject();
     }
 }

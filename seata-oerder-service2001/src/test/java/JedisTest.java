@@ -14,24 +14,24 @@ import java.util.Map;
  */
 public class JedisTest {
     @Test
-     public  void  testString(){
+    public void testString() {
         //1.连接redis
         Jedis jedis = new Jedis("127.0.0.1", 6379);
         //2.操作redis
-        jedis.set("name","lin");
+        jedis.set("name", "lin");
         String name = jedis.get("name");
         System.out.println("************name=" + name);
         //3.关闭数据
         jedis.close();
-     }
+    }
 
 
     @Test
-    public  void  testList(){
+    public void testList() {
         //1.连接redis
         Jedis jedis = new Jedis("127.0.0.1", 6379);
         //2.操作redis
-        jedis.lpush("list1","a","b","c");
+        jedis.lpush("list1", "a", "b", "c");
         jedis.rpush("list1", "x");
 
         List<String> list1 = jedis.lrange("list1", 0, -1);
@@ -44,13 +44,13 @@ public class JedisTest {
     }
 
     @Test
-    public  void  testHash(){
+    public void testHash() {
         //1.连接redis
         Jedis jedis = new Jedis("127.0.0.1", 6379);
         //2.操作redis
-        jedis.hset("hash1","a1","a1");
-        jedis.hset("hash1","a2","a2");
-        jedis.hset("hash1","a3","a3");
+        jedis.hset("hash1", "a1", "a1");
+        jedis.hset("hash1", "a2", "a2");
+        jedis.hset("hash1", "a3", "a3");
 
 
         Map<String, String> hash1 = jedis.hgetAll("hash1");

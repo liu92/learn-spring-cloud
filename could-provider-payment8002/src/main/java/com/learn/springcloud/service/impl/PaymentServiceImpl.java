@@ -23,21 +23,23 @@ public class PaymentServiceImpl implements PaymentService {
 
     /**
      * 插入
+     *
      * @param payment
      */
     @Override
-    public  int create(Payment payment){
-       return paymentDao.create(payment);
+    public int create(Payment payment) {
+        return paymentDao.create(payment);
     }
 
 
     /**
      * 根据id查询
+     *
      * @param id
      * @return
      */
     @Override
-    public Payment getPaymentById( Long id){
+    public Payment getPaymentById(Long id) {
         return paymentDao.getPaymentById(id);
     }
 }

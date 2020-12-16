@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 库存service
+ *
  * @ClassName: StorageService
  * @Description:
  * @Author: lin
@@ -15,8 +16,9 @@ public interface StorageService {
 
     /**
      * 减库存
+     *
      * @param productId
      * @param count
      */
-    void  decrease( Long productId, Integer count);
+    void decrease(Long productId, Integer count);
 }

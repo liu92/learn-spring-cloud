@@ -28,7 +28,7 @@ public class OrderNacosController {
     private String serverUrl;
 
     @GetMapping("/consumer/payment/nacos/{id}")
-    public String paymentInfo(@PathVariable("id") Integer id){
+    public String paymentInfo(@PathVariable("id") Integer id) {
         return restTemplate.getForObject(serverUrl + "/payment/nacos/" + id,
                 String.class);
     }

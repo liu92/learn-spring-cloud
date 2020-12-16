@@ -13,7 +13,6 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * @Date: 2020/8/26 16:27
  * History:
  * @<version> 1.0
- *
  */
 //取消数据源的自动装配，用我们自己创建的,使用seata对这个数据源进行管理
 @SpringBootApplication(exclude = DataSourceAutoConfiguration.class)

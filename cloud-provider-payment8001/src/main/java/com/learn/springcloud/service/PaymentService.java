@@ -16,6 +16,7 @@ public interface PaymentService {
 
     /**
      * 插入
+     *
      * @param payment
      */
     int create(Payment payment);
@@ -23,6 +24,7 @@ public interface PaymentService {
 
     /**
      * 根据id查询
+     *
      * @param id
      * @return
      */
