@@ -1,0 +1,66 @@
+server:
+  port: 2001
+
+spring:
+  application:
+    name: seata-order-service
+  cloud:
+    alibaba:
+      seata:
+        # 自定义事务组名称需要与seata-server中的对应
+        tx-service-group: my_test_tx_group
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  datasource:
+    # 当前数据源操作类型
+    type: com.alibaba.druid.pool.DruidDataSource
+    # mysql驱动类
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seata_order?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8
+    username: root
+    password: 123
+
+# 使用下面的方式 一直出现这个错误 no available service 'default' found, please make sure registry config correct
+# 或者 no available service 'null' found, please make sure registry config correct
+#seata:
+#  enabled: true
+#  application-id: ${spring.application.name}
+#  tx-service-group: my_test_tx_group
+#  enable-auto-data-source-proxy: true
+#  service:
+#    vgroup-mapping:
+#      my_test_tx_group: default  # 此处key需要与tx-service-group的value一致，否则会报 no available service 'null' found, please make sure registry config correct 异常
+#    grouplist:
+#      default: 127.0.0.1:8091
+#    enable-degrade: false
+#    disable-global-transaction: false
+#  config:
+#    type: nacos
+#    nacos:
+#      namespace:
+#      serverAddr: 127.0.0.1:8848
+#      group: SEATA_GROUP
+#      userName: ""
+#      password: ""
+#  registry:
+#    type: nacos
+#    nacos:
+#      application: seata-order-service  # 此处名称需和 seata server 服务端 application一致,否则会报 no available service 'null' found, please make sure registry config correct 异常
+#      server-addr: 127.0.0.1:8848
+#      namespace:
+#      userName: ""
+#      password: ""
+
+
+
+feign:
+  hystrix:
+    enabled: false
+logging:
+  level:
+    io:
+      seata: info
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
