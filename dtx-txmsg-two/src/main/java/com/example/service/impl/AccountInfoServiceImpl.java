@@ -6,6 +6,7 @@ import com.example.service.AccountInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -21,9 +22,12 @@ public class AccountInfoServiceImpl implements AccountInfoService {
     @Autowired
     AccountInfoDao accountInfoDao;
 
-    //更新账户，增加金额
+    /**
+     * 更新账户，增加金额
+     * @param accountChangeEvent
+     */
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = RuntimeException.class)
     public void addAccountInfoBalance(AccountChangeEvent accountChangeEvent) {
         log.info("bank2更新本地账号，账号：{},金额：{}",accountChangeEvent.getAccountNo(),accountChangeEvent.getAmount());
         if(accountInfoDao.isExistTx(accountChangeEvent.getTxNo())>0){
