@@ -11,6 +11,7 @@ import org.apache.rocketmq.spring.core.RocketMQLocalTransactionState;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -43,7 +44,7 @@ public class ProducerTxmsgListener  implements RocketMQLocalTransactionListener 
      *
     */
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED,rollbackFor = RuntimeException.class)
     public RocketMQLocalTransactionState executeLocalTransaction(Message message, Object o) {
 
         try {

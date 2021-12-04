@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -70,12 +71,14 @@ public class AccountInfoServiceImpl implements AccountInfoService {
      * 
     */
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = RuntimeException.class)
     public void doUpdateAccountBalance(AccountChangeEvent accountChangeEvent) {
 
         log.info("bank1更新本地账号，账号：{},金额：{}",accountChangeEvent.getAccountNo(),
                 accountChangeEvent.getAmount());
-        //幂等判断
+        /**
+         * 幂等判断
+         */
         if(accountInfoDao.isExistTx(accountChangeEvent.getTxNo())>0){
             return ;
         }
