@@ -23,7 +23,10 @@ public class TxmsgConsumer implements RocketMQListener<String> {
     @Autowired
     AccountInfoService accountInfoService;
 
-    //接收消息
+    /**
+     * 接收消息
+     * @param message 消息
+     */
     @Override
     public void onMessage(String message) {
         log.info("开始消费消息:{}",message);

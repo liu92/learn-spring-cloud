@@ -1,6 +1,6 @@
 # learn-spring-cloud结合 spring-cloud-alibaba 比较新版学习
 
-## 1、创建一个简单的父工程 learn-spring-cloud，然后修改pom.xml文件中依赖。
+# 1、创建一个简单的父工程 learn-spring-cloud，然后修改pom.xml文件中依赖。
 
 ```
 spring-boot和spring-cloud
@@ -10,7 +10,7 @@ spring-cloud版本是 Hoxton.SR1,
 spring.cloud.alibaba 2.1.0.RELEASE
 ```
 
-### 2、创建一个子模块module,cloud-provider-payment8001, 修改依赖并添加配置文件。
+# 2、创建一个子模块module,cloud-provider-payment8001, 修改依赖并添加配置文件。
 
 创建实体类Payment 和公用返回CommonResult类，对应的dao层， paymentDao, 业务层接口PaymentService，
 以及实现层PaymentServiceImpl, 还有控制层PaymentController
@@ -88,7 +88,7 @@ public class PaymentController {
 ![img](image/devtool-update-setting.png)
 上面的是一个服务的时候，如果有其他的服务来调用的时候怎么办？
 
-### 3、创建一个新的mould模块，cloud-consumer-order80
+# 3、创建一个新的mould模块，cloud-consumer-order80
 
 添加相关配置并且将实体类copy到这个mould中来。两个服务之间调用最原始的是通过http来调用，还有一个是restTemplate。这里先使用 restTemplate来进行调用
 
@@ -147,11 +147,11 @@ public class ApplicationContextConfig {
     </option>
   </component>
 ```
-### 4、上面的两个模块中存在一个问题，相同的类在两个模块中都出现了
+# 4、上面的两个模块中存在一个问题，相同的类在两个模块中都出现了
 
 所有我们将相同地类提出来放到一个公用的模块中去，这里新建立一个模块。cloud-api-commons
 
-### 5、使用eureka来进行服务注册,创建新模块 cloud-eureka-server7001
+# 5、使用eureka来进行服务注册,创建新模块 cloud-eureka-server7001
 
 ```
 Eureka包含两个组件：Eureka Server和Eureka Client
@@ -190,7 +190,7 @@ public class EurekaMain7001 {
 启动eureka注册中心，可以看到当前还没有服务注册进去
 ![img](image/eureka-server-test.png)
 
-### 6、将服务提供者注册到eureka中，那么修改provider和consumer启动类，添加EurekaClient注解。
+# 6、将服务提供者注册到eureka中，那么修改provider和consumer启动类，添加EurekaClient注解。
 
 ```java
 package com.learn.springcloud;
@@ -252,7 +252,7 @@ eureka:
 在下面的图中可以一行红色字，它是eureka的自我保护机制。
 ![img](image/eureka-provider-client.png)
 
-### 7、修改服务消费consumer的启动类 
+# 7、修改服务消费consumer的启动类 
 
 ```java
 package com.learn.springcloud;
@@ -288,7 +288,7 @@ public class OrderMain80 {
 Failed to bind properties under 'eureka.client.service-url' to java.util.map<java.lang.String,java.lang.String>
 ```
 
-### 8、eureka集群构建
+# 8、eureka集群构建
 
 ```
 Eureka
@@ -304,7 +304,7 @@ Eureka
 6:消费者获得服务地址后会缓存在本地jvm内存中，默认每间隔30更新一次服务调用地址
 ```
 
-### 9、创建一给module,这个模块是cloud-eureka-server7002,这样来搭建eureka集群。同样的在pom文件中加入和cloud-eureka-server7001
+# 9、创建一给module,这个模块是cloud-eureka-server7002,这样来搭建eureka集群。同样的在pom文件中加入和cloud-eureka-server7001
 
 加入相同的依赖，然后修改application.yml文件。因为是集群，所有应该是相互注册。并且修改hosts文件。
 
@@ -324,7 +324,7 @@ cloud-eureka-server7002中的
   hostname: eureka7002.com #eureka服务端的实例名称
 ```
 
-### 10、将provider和consumer注册到 eureka集群中去，就需要修改application.yml。
+# 10、将provider和consumer注册到 eureka集群中去，就需要修改application.yml。
 
  将这个服务提供者和服务消费者
 注册进入。
@@ -337,7 +337,7 @@ cloud-eureka-server7002中的
 访问 eureka7001.com:7001可以看到，服务提供者和服务消费者已经注册到eureka集群中去了。
 ![img](image/eureka-server7001.png)
 
-### 11、在服务单机版是，如果访问量不大得情况下还可以使用
+# 11、在服务单机版是，如果访问量不大得情况下还可以使用
 
 但是当请求数量增大时单机版压力就增大，如果服务器宕机了那么整个服务就不可用，所以这里搭建 服务提供者集群版，新建立一个模块 could-provider-payment8002。pom依赖
 和could-provider-payment8001 一致。 需求修改application.yml配置文件的端口号。
@@ -422,7 +422,7 @@ public class ApplicationContextConfig {
 ```
 那么再次访问 http://localhost/consumer/get/23 时，就会根据负载均衡得方式在集群中选择一台服务来访问。端口8001/8002交替出现
 
-### 12、不暴露ip地址，只是暴露服务名称，那么修改yml配置，在配置文件中加入 instance 实例。如果在鼠标移动到服务时显示ip
+# 12、不暴露ip地址，只是暴露服务名称，那么修改yml配置，在配置文件中加入 instance 实例。如果在鼠标移动到服务时显示ip
 
 那么需要添加 prefer-ip-address: true 。
 
@@ -435,7 +435,7 @@ public class ApplicationContextConfig {
       #Eureka服务端收到最后一次心跳后等待时间上线，单位为秒（默认为90秒） 超时将剔除服务
       lease-expiration-duration-in-seconds: 2
 ```
-### 13、服务发现Discovery,在cloud-provider-payment8001中 的controller中 添加 DiscoveryClient 注解。并且在启动类中
+# 13、服务发现Discovery,在cloud-provider-payment8001中 的controller中 添加 DiscoveryClient 注解。并且在启动类中
 
 加入@EnableDiscoveryClient 注解。我可以查看这个这个注册中心由那些服务。
 
@@ -468,7 +468,7 @@ public class ApplicationContextConfig {
 
 ```
 
-## 14、Eureka保护模式
+# 14、Eureka保护模式
 
  保护模式主要用于一组客户端和Eureka Server之间存在网络分区场景下的保护，一旦进入保护模式，Eureka Server将会
 尝试保护其服务注册表中的信息，不再删除服务注册表中的数据，也就是不会注销任何微服务。
@@ -491,7 +491,7 @@ public class ApplicationContextConfig {
      综上，自我保护模式是一种应对网络异常的安全保护措施。它的架构哲学是宁可同时保留所有微服务(健康的微服务和不健康的微服务
      都会保留)也不盲目注销任何健康的微服务。使用自我保护模式，可以让Eureka集群更加健壮、稳定。
 
-### 14.1、禁止Eureka保护模式
+## 14.1、禁止Eureka保护模式
 
 ``` 
  在eurekaServer中yml配置文件下，修改配置
@@ -507,13 +507,13 @@ public class ApplicationContextConfig {
       lease-expiration-duration-in-seconds: 2
 
 ```
-## 15、使用zookeeper作为注册中心，我们先要将zookeeper在linux中安装并且启动，这里使用zookeeper-3.4.14版本。
+# 15、使用zookeeper作为注册中心，我们先要将zookeeper在linux中安装并且启动，这里使用zookeeper-3.4.14版本。
 
 然后在项目中创建一个新的模块。cloud-provider-payment8004。然后在依赖中添加zookeeper依赖，创建启动类，然后启动
 之后看到这里出现了冲突。curator-x-discovery:4.0.1中自带是zookeeper-3.5.3-beta.jar 和服务器的版本不一致。
 ![img](image/zookeeper-start-conflict.png)
 
-### 15.1 解决zookeeper依赖包冲突问题,修改项目pom依赖，将自身带有的zookeeper去掉。然后添加 zookeeper,和服务器版本一致
+## 15.1 解决zookeeper依赖包冲突问题,修改项目pom依赖，将自身带有的zookeeper去掉。然后添加 zookeeper,和服务器版本一致
 
 ``` 
 <dependency>
@@ -552,7 +552,7 @@ public class ApplicationContextConfig {
     </exclusions>
 </dependency> 
 ```
-### 15.2 再次启动payment8004 可以看到已经能注册到zookeeper中去了。
+## 15.2 再次启动payment8004 可以看到已经能注册到zookeeper中去了。
 
 ![img](image/payment-8004-zookeeper-start.png)
 然后去zookeeper服务器也可以看到cloud-provider-payment8004 已经注册进去了
@@ -578,7 +578,7 @@ numChildren = 0
 [zk: localhost:2181(CONNECTED) 8] 
 
 ```
-### 15.3 添加一个消费者服务cloud-consumerzk-order80让其注册到zookeeper中去，这个模块和服务消费者原来的一样的的建立方式
+## 15.3 添加一个消费者服务cloud-consumerzk-order80让其注册到zookeeper中去，这个模块和服务消费者原来的一样的的建立方式
 
 只需要要修改pom.xml依赖文件中的 zookeeper依赖。同时application.yml 修改 让其注册到zookeeper中。OrderController实例如下
 
@@ -628,7 +628,7 @@ public class OrderZkController {
 ![img](image/zookeeper-consumer-order80.png)
 同时使用这个模块中定义的接口访问，http://localhost/consumer/payment/zk 可以访问成功。
 
-## 16、使用consul做注册中心。
+# 16、使用consul做注册中心。
 
   consul是什么？
 
@@ -638,12 +638,12 @@ public class OrderZkController {
     它具有很多优点。包括：基于raft协议，比较简洁；支持健康检查，同时支持Http和DNS协议 支持跨数据中心的WAN集群
     提供图像界面跨平台，支持Linux、Mac、Windows
 
-### 16.1 根据实际需求下载consul，然后下载之后解压文件只有一个consul.exe文件，那么使用cmd进入这个文件的位置
+## 16.1 根据实际需求下载consul，然后下载之后解压文件只有一个consul.exe文件，那么使用cmd进入这个文件的位置
 
 然后使用 consul agent -v 来启动。启动之后访问http://localhost:8500/ui/dc1/services，就可以看到一个界面。
 ![img](image/consul-ui.png)
 
-### 16.2 创建模块，将服务提供者注册到consul中，创建cloud-provide-consul-payment8006,然后修改pom依赖，
+## 16.2 创建模块，将服务提供者注册到consul中，创建cloud-provide-consul-payment8006,然后修改pom依赖，
 
 添加consul的依赖，配置文件修改。
 
@@ -664,7 +664,7 @@ spring:
 ![img](image/consul-provider-payment-8006.png)
 同样访问http://localhost:8006/payment/consul 这个接口可以访问成功
 
-### 16.3 添加消费者模块cloud-consumer-consul-order80,然后pom文件和配置文件。让其也注册到consul中去
+## 16.3 添加消费者模块cloud-consumer-consul-order80,然后pom文件和配置文件。让其也注册到consul中去
 
 然后添加controller, 启动主启动类。然后看看服务消费者是否注册到consul中去。
 
@@ -727,7 +727,7 @@ AP-满足可用性，分区容错的系统，通常可能对一致性要求低�
 
 ```
 
-## 18、Ribbon负载均衡和服务调用
+# 18、Ribbon负载均衡和服务调用
 
 还是使用EurekaMain7001、EurekaMain7002、PaymentMain8001、PaymentMain8002、OrderMain80。来进行测试
 
@@ -737,7 +737,7 @@ AP-满足可用性，分区容错的系统，通常可能对一致性要求低�
 一系列完善的配置项如连接超时，重试等。简单的说，就是配置文件中列出Load Balancer(简称LB) 后面所有的机器，
 Ribbon会自动的帮助你基于某种规则去连接这些机器，我们很容易使用Ribbon实现自定义的负载均衡算法。
 ```
-### 18.1 LB负载均衡是什么
+## 18.1 LB负载均衡是什么
 
 ``` 
 1、简单的说就是将用户的请求平摊的分配到多个服务上，从而达到系统的HA(高可用)。
@@ -754,12 +754,12 @@ Ribbon会自动的帮助你基于某种规则去连接这些机器，我们很�
   将LB逻辑集成到消费方，消费方从服务注册中心获知有哪些地址可用，然后自己再从这些地址中选择一个合适的服务器。
   Ribbon就属于进行内LB，它只是一个类库，集成于消费方进程，消费方通过它来获取到服务提供方的地址。
 ```
-### 18.2 在上面的cloud-consumer-order80
+## 18.2 在上面的cloud-consumer-order80
 
 我们访问localhost:80/consumer/payment/get/23时候出现的端口是轮询的方式出现，但是我们在pom中没有加入Ribbon 那么这个负载均衡是如何实现的呢？原来使用的
 spring-cloud-starter-netflix-eureka-client依赖中带有Ribbon，所以客户端就会自带的实现负载均衡功能。
 
-### 18.3 restTemplate中的 getForObject和getForEntity的区别。
+## 18.3 restTemplate中的 getForObject和getForEntity的区别。
 
 第一个可以理解返回的是一个json格式，第二个表示返回对象为ResponseEntity对象，包含了响应中的一些重要信息，比如响应头、响应状态码、响应体等
 
@@ -776,7 +776,7 @@ spring-cloud-starter-netflix-eureka-client依赖中带有Ribbon，所以客户�
         }
     }
 ```
-### 18.4 Ribbon核心之间IRule
+## 18.4 Ribbon核心之间IRule
 
 ``` 
 com.netflix.loadbalancer.RoundRobinRule---轮询
@@ -788,7 +788,7 @@ AvailabilityFilteringRule----先过滤掉故障实例，再选择并发较小的
 ZoneAvoidanceRule----默认规则，复合判断server所在区域的性能和server的可用性选择服务器
 ```
 
-### 18.5 使用自己定义的负载均衡算法替换，在cloud-consumer-order80新建立一个包不要主启动放在同一个路径下。
+## 18.5 使用自己定义的负载均衡算法替换，在cloud-consumer-order80新建立一个包不要主启动放在同一个路径下。
 
 在其官方文档下给出了明确的警告。
 
@@ -842,7 +842,7 @@ List[1] instances = 127.0.0.1:8001
 当总请求数为3时：3 % 2 =1 对应下标位置为1，则获得服务地址为127.0.0.1:8001 
 当总请求数为4时：4 % 2 =0 对应下标位置为0，则获得服务地址为127.0.0.1:8002 
 ```
-### 18.6 Ribbon的默认算法是RoundRobinRule,其实使用的算法就是根据取余方式来计算的
+## 18.6 Ribbon的默认算法是RoundRobinRule,其实使用的算法就是根据取余方式来计算的
 
 ```java
 /*
@@ -968,7 +968,7 @@ public class RoundRobinRule extends AbstractLoadBalancerRule {
 }
 
 ```
-### 18.7 自定义负载均衡算法
+## 18.7 自定义负载均衡算法
 
 首先需要将ApplicationContextConfig中  @LoadBalanced注解去掉因为要自己定义算法的，所以就不需要Ribbon中的负载均衡算法。首先定义一个接口，这个接口是来获取服务实例的
 
@@ -1061,7 +1061,7 @@ public class MyLb implements LoadBalancer{
 ```
 最后在 controller中添加接口进行测试 http://localhost:80/consumer/payment/lb可以看到的 不同的端口变化
 
-## 19、openFeign是什么
+# 19、openFeign是什么
 
 ``` 
 官网地址：https://docs.spring.io/spring-cloud-openfeign/docs/2.2.4.RELEASE/reference/html/
@@ -1091,7 +1091,7 @@ Feign 和 OpenFeign区别
 类中做负载均衡并调用其他服务。
 ```
 
-### 19.1 创建一个模块，cloud-consumer-feign-order80 。然后使用feign, 从官网文档可知feign是用着客户端的
+## 19.1 创建一个模块，cloud-consumer-feign-order80 。然后使用feign, 从官网文档可知feign是用着客户端的
 
 ```
 Feign is a declarative web service client。 
@@ -1162,7 +1162,7 @@ public interface PaymentFeignService {
 可以看到可以多次访问端口不一样。也实现了负载均衡
 ![img](image/consumer-feign-order80.png)
 
-### 19.2 消费者调用服务提供者是两个不同的微服务，就会存在超时现象。所以在服务提供方故意写一个超时访问的接口。
+## 19.2 消费者调用服务提供者是两个不同的微服务，就会存在超时现象。所以在服务提供方故意写一个超时访问的接口。
 
 openfeign默认超时是1s，如果超过1s那么就会报错。
 
@@ -1192,7 +1192,7 @@ openfeign默认超时是1s，如果超过1s那么就会报错。
            return paymentFeignService.paymentFeignTimeout();
        }
 ```
-### 19.3 OpenFeign日志增强
+## 19.3 OpenFeign日志增强
 
 ```
  Feign提供了日志打印功能，我们可以通过配置来调整日志级别，从而了解Feign中Http请求的细节。也就是对
@@ -1234,13 +1234,13 @@ public class FeignConfig {
 
 
 
-## 20、分布式系统面临什么问题
+# 20、分布式系统面临什么问题
 
 ```
 在分布式微服务中会面临很多问题，复杂的分布式体系结构中的应用程序有数十个依赖关系，每个依赖关系在
 某些时候将不可避免地失败。
 ```
-### 20.1 hystrix是什么
+## 20.1 hystrix是什么
 
 ```
  hystrix是一个用于处理分布式系统的延迟和容错的开源库，在分布式系统里，许多依赖不可避免的会调用失败，比如
@@ -1250,7 +1250,7 @@ public class FeignConfig {
 符合预期的、可处理的备选响应（FallBack），而不是长时间的等待或者抛出调用方无法处理的异常，这样就保证了服务调用
 的线程不会被长时间、不必要地占用，从而避免了故障在分布式系统中的蔓延，乃至雪崩。
 ```
-### 20.2 hystrix能做什么，服务降级、服务熔断、接近实时的监控等
+## 20.2 hystrix能做什么，服务降级、服务熔断、接近实时的监控等
 
 ```
  服务降级:服务器忙，请稍后再试，不让客户端等待并立刻返回一个友好提示。
@@ -1262,7 +1262,7 @@ public class FeignConfig {
  服务限流：秒杀高并发等操作，严禁一窝蜂的过来拥挤，大家排队，一秒钟N个，有序进行 
 ```
 
-### 20.3 使用一个单机版的eureka来进行注册，
+## 20.3 使用一个单机版的eureka来进行注册，
 
 先恢复7001为单机版的。然后创建一个hystrix模块。cloud-provider-hystrix-payment8001 ，然后引入hystrix依赖包添加application.yml配置后。
 创建一个PaymentService类来编写两个方法
@@ -1364,7 +1364,7 @@ public class PaymentController {
 然后启动PaymentHystrixMain8001。访问localhost:8001/payment/hystrix/ok/23可以看到能够连接通。
 访问localhost:8001/payment/hystrix/timeout/21 也成功没有报错,不过这个接口要等待3秒钟。
 
-### 20.4 使用jMeter高并发来进行压力测试。
+## 20.4 使用jMeter高并发来进行压力测试。
 
 ``` 
 1、当有20000个请求来访问localhost:8001/payment/hystrix/timeout/21的时候，我们再去访问
@@ -1374,7 +1374,7 @@ localhost:8001/payment/hystrix/ok/23 就可以感觉到这个响应变慢了。�
 请求了，那么其他的请求就没有资源来处理了。就造成了其他的请求也变慢了。
 tomcat默认的工作线程数被打满了没有多余的线程来分解压力和处理其他请求。从而出现了请求变慢的情况。
 ```
-### 20.5 服务降级容错解决的维度要求
+## 20.5 服务降级容错解决的维度要求
 
 ``` 
 超时导致服务器变慢，那么就需要在规定的时间内返回，并且不应该返回报错信息，而是给出友好提示。超时不再等待
@@ -1385,7 +1385,7 @@ tomcat默认的工作线程数被打满了没有多余的线程来分解压力�
    对方服务宕机了，调用者不能一直卡死等待，必须有服务降级
    对方服务ok,调用者自己出故障或有自我要求(自己等待的时间小于服务提供时间)，自己处理服务降级
 ```
-### 20.6服务降级，在规定的时间没有响应，那么需要兜底方案
+## 20.6服务降级，在规定的时间没有响应，那么需要兜底方案
 
 如果在请求一个接口是在规定的时间内没有响应或者访问超时，那么久需要有兜底方案，
 返回友好的提示给用户，让用户知道现在服务出现了问题而不再进行操作。在测试超时访问的接口上添加注解
@@ -1433,7 +1433,7 @@ http://localhost:8001/payment/hystrix/timeout/12 可以看到如果超过了规�
 指定的方法。同样计算异常也会调用指定的兜底方法。
 ![img](image/hystrix-timeout-fallback.png)
 
-### 20.7 同样消费端80微服务，也可以更好的保护自己，自己也可以进行客户端降级保护。
+## 20.7 同样消费端80微服务，也可以更好的保护自己，自己也可以进行客户端降级保护。
 
 首先修改cloud-consumer-feign-hystrix-order80的配置文件，开启hystrix。并且启动类添加激活注解
 
@@ -1471,7 +1471,7 @@ feign:
 调用兜底方法
 ![img](image/consumer-hystrix-timeout.png)
 
-### 20.8 、采用全局兜底方案，降低代码耦合度
+## 20.8 、采用全局兜底方案，降低代码耦合度
 
   从上面的方式来看，每个业务方法对应一个兜底的方法，从而使代码膨胀，如果有多个方法需要进行兜底操作，
 那么需要写多个兜底方法，并且代码耦合度变高。 那么对于大多数的方法采用全局方式来处理，只要特殊地才单独处理。
@@ -1490,7 +1490,7 @@ feign:
 如果方法的方法没有单独指定fallbackMethod方法，那么就会调用全局fallback方法。
 ![img](image/consumer-hystrix-global-config.png)
 
-### 20.9 、定义一个服务降级处理的类
+## 20.9 、定义一个服务降级处理的类
 
 如果客户端去调用服务端，碰上服务端宕机或关闭，上面测试的服务降级是客户端80实现完成的，与服务端
 8001没有关系，只需要为Feign客户端定义的接口添加一个服务降级处理的实现类即可实现解耦。
@@ -1540,7 +1540,7 @@ public class PaymentFallbackService implements  PaymentHystrixService{
 时也会获取到提示而不会挂起耗时服务器。
 ![img](image/consumer-serviceimpl-fallback.png)
 
-### 20.10 服务熔断，当检测到该节点微服务调用响应正常后，恢复调用链路。
+## 20.10 服务熔断，当检测到该节点微服务调用响应正常后，恢复调用链路。
 
 ``` 
 熔断机制概述：
@@ -1593,7 +1593,7 @@ public class PaymentFallbackService implements  PaymentHystrixService{
 ![img](image/payment-circuit-breaker-3.png)
 当我们输入正确的数字，它会慢慢恢复调用链。
 
-### 20.11 服务熔断小结论
+## 20.11 服务熔断小结论
 
 ``` 
 https://martinfowler.com/bliki/CircuitBreaker.html 文章
@@ -1620,7 +1620,7 @@ hystrix原来的主逻辑如何恢复
     请求到原来的主逻辑上，如果此次请求正常返回，那么断路器将继续闭合，主逻辑恢复，如果这次请求依然有问题，
     断路器继续进入打开状态，休眠时间窗重新计时。
 
-## 21、Hystrix图形化dashboard搭建
+# 21、Hystrix图形化dashboard搭建
 
 创建一个新的模块 cloud-consumer-hystrix-dashboard9001。在pom文件中添加dashboard的依赖，然后添加配置指定端口。创建主启动类并添加@EnableHystrixDashboard注解
 来开启dashboard。启动主启动类访问http://localhost:9001/hystrix。可以看到已经搭建成功
@@ -1633,7 +1633,7 @@ hystrix原来的主逻辑如何恢复
 如果是测试错误的情况下，可以看到服务熔断开启了。
 ![img](image/consumer-hystrix-dashboard-provider-2.png)
 
-## 22、服务网关GateWay和Zuul
+# 22、服务网关GateWay和Zuul
 
 ``` 
  Cloud全家桶中有个很重要的组件就是网关，在1.x版本中都是采用的Zuul网关；
@@ -1661,17 +1661,17 @@ GateWay ，GateWay是原Zuul1.x版的替代
   SpringCloud GateWay与Zuul的区别，在 SpringCloud Finchley正式版之前， SpringCloud推荐的网关是
   Netflix提供的Zuul:
 ​    
-    1、Zuul1.x,是一个基于阻塞I/O的API GateWay
-    2、Zuul1.x 基于Servlet2.5使用阻塞架构它不支持任何长连接(如WebSocket)Zuul的设计模式和Nginx较像，每次I/O操作都是
-    从工作线程中选择一个执行，请求线程被阻塞到工作线程完成，但是差别是Nginx用C++实现，zuul用java实现，而JVM本身
-    会有第一次加载较慢的情况，使得Zuul的性能相对较差。
-    3、zuul2.x理念更先进，想基于Netty非阻塞和支持长连接，但SpringCloud目前还没有整合。Zuul2.x的性能Zuul1.x有较大提升。
-    在性能方面，根据官方提供的基准测试， SpringCloud GateWay的RPS(每秒请求数)是Zuul的1.6倍。
-    
+​    1、Zuul1.x,是一个基于阻塞I/O的API GateWay
+​    2、Zuul1.x 基于Servlet2.5使用阻塞架构它不支持任何长连接(如WebSocket)Zuul的设计模式和Nginx较像，每次I/O操作都是
+​    从工作线程中选择一个执行，请求线程被阻塞到工作线程完成，但是差别是Nginx用C++实现，zuul用java实现，而JVM本身
+​    会有第一次加载较慢的情况，使得Zuul的性能相对较差。
+​    3、zuul2.x理念更先进，想基于Netty非阻塞和支持长连接，但SpringCloud目前还没有整合。Zuul2.x的性能Zuul1.x有较大提升。
+​    在性能方面，根据官方提供的基准测试， SpringCloud GateWay的RPS(每秒请求数)是Zuul的1.6倍。
+​    
     4、 SpringCloud GateWay建立在Spring Framework5、Project Reactor和Springboot2之上，使用非阻塞API。
     5、 SpringCloud GateWay还支持WebSocket，并且与Spring紧密集成拥有更好的开发体验
 
-### 22.1、为什么选择SpringCloud GateWay
+## 22.1、为什么选择SpringCloud GateWay
 
     1、SpringCloud中所集成的Zuul版本，采用的是Tomcat容器，使用的是传统的Servlet IO处理模型。
     对于Servlet大家都应该知道，其生命周期，Servlet是由servlet container进行生命周期管理。
@@ -1701,7 +1701,7 @@ GateWay ，GateWay是原Zuul1.x版的替代
 
 ​    
 
-### 22.2、GateWay三大核心概念
+## 22.2、GateWay三大核心概念
 
 ``` 
  Route(路由)
@@ -1730,7 +1730,7 @@ GateWay ，GateWay是原Zuul1.x版的替代
 
 ​    
 
-### 22.3 GateWay工作流程
+## 22.3 GateWay工作流程
 
   ![img](image/springcloud-gateway-works.png)
     
@@ -1744,7 +1744,7 @@ GateWay ，GateWay是原Zuul1.x版的替代
     再"post"类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有非常重要的作用。
  GateWay 的核心逻辑就是路由转发+执行过滤链
 
-###  22.4 、创建模块测试gateway
+##  22.4 、创建模块测试gateway
 
 创建一个模块 cloud-gateway-gateway9527来测试，这个模块不需要连接数据库这和编写些业务类等。
  只需要添加gateway的相关依赖和修改application.yml文件。 这里网关配置路由的地址是8001,所以我们要
@@ -1786,7 +1786,7 @@ spring:
  接口地址匹配 那么就能成功访问，如果不匹配则不能访问。这样就可以不暴露真实的地址，而是通过网关路由匹配地址。
 ![img](image/cloud-gateway-9527.png)
 
-### 22.5 通过编码的方式来进行网关路由的配置 
+## 22.5 通过编码的方式来进行网关路由的配置 
 
 ``` 
 官网文档
@@ -1844,7 +1844,7 @@ public class GateWayConfig {
 启动测试http://localhost:9527/guonei 可以看到这个通过网关转发到了baidu的相关页面
 ![img](image/gateway-route-baidu.png)
 
-###  22.6 、负载均衡的方式访问服务
+##  22.6 、负载均衡的方式访问服务
 
 上面的方式只能访问写死的两个微服务，如果注册中心有多个微服务呢？怎么负载均衡得去访问呢？
  这里就需要修改配置文件，从注册中心选取微服务进行路由转发。修改yml配置，让其从注册中动态创建路由的功能，
@@ -1907,7 +1907,7 @@ cloud:
 测试如果是正数那么就能正确返回，如果是负数则访问时报错。
 ![img](image/gateway-predicates-header-curl-test1.png)
 
-###  22.7 、全局GlobalFilter
+##  22.7 、全局GlobalFilter
 
 GateWay的Filter, 一般自定义全局GlobalFilter， 这个要实现GlobalFilter,ordered这两个接口。
  过滤器可以进行全局日志记录，统一网关鉴权等 ，编写一个全局过滤器MyLogGateWayFilter。
@@ -1960,7 +1960,7 @@ public class MyLogGateWayFilter implements GlobalFilter, Ordered {
 如果没有加入参数或者参数名不正确,那么访问的时间就不能访问到。
 ![img](image/gateway-myfilter-error-paramter-test1.png)
 
-## 23 Spring Cloud Config (服务配置中心)
+# 23、Spring Cloud Config (服务配置中心)
 
 ``` 
 分布式系统面临的问题：随着项目模块越来越多，那么对应的每一个工程就会有一个yml配置 使项目膨胀，东西多了就要
@@ -1971,13 +1971,13 @@ public class MyLogGateWayFilter implements GlobalFilter, Ordered {
 服务都需要必要的配置信息才能运行，所以一套集中式的、动态的配置管理设施是必不可少的
 Spring Cloud提供了ConfigServer来解决这个问题。
 ```
-### 23.1 Spring Cloud Config 是什么
+## 23.1 Spring Cloud Config 是什么
 
 ``` 
 SpringCloud Coonfig为微服务架构中的微服务提供集中化的外部配置支持，配置服务器为各个不同微服务应用的所以环境提供了
 一个中心化的外部配置。
 ```
-### 23.2 Spring Cloud Config 能做什么
+## 23.2 Spring Cloud Config 能做什么
 
 ``` 
  1、集中管理配置文件
@@ -1986,7 +1986,7 @@ SpringCloud Coonfig为微服务架构中的微服务提供集中化的外部配�
  4、当配置发送变动时，服务不需要重启即可感知到配置的变化并应用新的的配置
  5、将配置信息以REST接口的形式暴露
 ```
-### 23.3 Spring Cloud Config 服务端配置与测试
+## 23.3 Spring Cloud Config 服务端配置与测试
 
  创建一个模块cloud-config-center-3344来测试全局配置。首先修改pom文件，然后在application.yml中指定github上
  的中心配置文件。
@@ -2029,7 +2029,7 @@ name：表示名称
 profile:表示是那个环境
 ```
 
-### 23.4 Spring Cloud Config 客户端配置与测试
+## 23.4 Spring Cloud Config 客户端配置与测试
 
 新建客户端配置cloud-config-client-3355,这里会使用bootstrap.yml配置文件
 
@@ -2047,7 +2047,7 @@ Spring Cloud会创建一个 "Bootstrap Context",作为Spring应用的'Applicatio
 先加载的。
 ```
 
-### 23.5 Spring Cloud Config 客户端之动态刷新
+## 23.5 Spring Cloud Config 客户端之动态刷新
 
 ``` 
 在中心配置修改了文件之后，服务端立即生效，但是客户端没生效。那么为了避免每次更新配置都要重启客户端3355
@@ -2114,7 +2114,7 @@ curl -X POST "http://localhost:3355/actuator/refresh"
 如果多个微服务客户端，那么每个都需要执行一次post刷新操作，可否有广播的方式，一次通知，处处生效？进行精确的通知？
 现在还不能实现，所以有了消息总线来处理。
 
-## 23、Spring Cloud Bus消息总线是什么？
+# 24、Spring Cloud Bus消息总线是什么？
 
 ``` 
 对上面的加深和扩充，分布式自动刷新配置功能，Spring Cloud Bus 配合 Spring Cloud Config使用可以实现配置的动态
@@ -2125,7 +2125,7 @@ Bus支持两种消息代理：RabbitMQ和Kafka。
 Spring Cloud Bus 是用来将分布式系统的节点与轻量级消息系统链接起来的框架，它整合了java的事件处理机制和消息
 中间件的功能。
 
-### 23.1 能干什么
+## 24.1 能干什么
 
 ``` 
 Spring Cloud Bus能管理和传播分布式系统间的消息，就像一个分布式执行器，可用于广播状态更改、事件推送等，也可以
@@ -2141,12 +2141,12 @@ Spring Cloud Bus能管理和传播分布式系统间的消息，就像一个分�
 ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个服务刷新数据的时候，它会把这个消息放到Topic
 中，这样其它监听同一Topic的服务就能得到通知，然后去更新自身的配置。
 ```
-### 23.2 安装erlang 和rabbitMq 
+## 24.2 安装erlang 和rabbitMq 
 
 ``` 
 在RabbitMQ的sbin目录中，输入命令rabbitmq-plugins enable rabbitmq_management 这样就可以添加可视化插件了
 ```
-### 23.3 Spring Cloud Bus 动态刷新全局广播
+## 24.3 Spring Cloud Bus 动态刷新全局广播
 
 ``` 
 有两种方案：
@@ -2158,13 +2158,13 @@ ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个
 打破了微服务的职责单一性，因为微服务本身是业务模块，它本不应该承担配置刷新的职责。
 破坏了微服务各节点的对等性。
 ```
-### 23.4、消息总线的广播方式
+## 24.4、消息总线的广播方式
 
 创建一个模块cloud-config-client-3366，然后修改pom和 application.yml文件。这个和3355一起配合测试
 消息总线的广播方式。 修改3344配置中心，添加RabbitMQ相关依赖和 添加RabbitMQ服务地址。在其它3355和3366也添加
 消息总线RabbitMQ支持。 
 
-### 23.5、测试示例
+## 24.5、测试示例
 
  首先启动eureka7001、cloud-config-center-3344、cloud-config-client-3355、cloud-config-client-3366。
 然后访问http://config-3344.com:3344/master/config-dev.yml 这个配置还没有修改。那么接下来对其进行修改。
@@ -2185,7 +2185,7 @@ ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个
 在RabbitMQ中可以看到这个exchange中有SpringCloud Bus,这个其实就是一个topic 
 ![img](image/spring-cloud-bus-topic.png) 
 
-### 23.6 进行定点通知
+## 24.6 进行定点通知
 
 如果命令 curl -X POST "http://localhost:3344/actuator/bus-refresh" 不指定通知谁
 那么就是全局的通知，如果指定了那么就是 精确通知。下面的添加config-client:3355就精确通知。
@@ -2195,7 +2195,7 @@ ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个
     curl -X POST "http://localhost:3344/actuator/bus-refresh/config-client:3355"
     就是在后面指定微服务名称和端口号
 
-## 24、Spring Cloud Stream 消息驱动
+# 25、Spring Cloud Stream 消息驱动
 
 ``` 
 如果在不同系统中使用了不同的消息中间件，那么在这种情况下，就会存在很多问题，比如：切换、维护、开发
@@ -2203,7 +2203,7 @@ ConfigClient实例都监听MQ中同一topic(默认是SpringCloudBus)。当一个
 只要用一种适配绑定的方式，自动的给我们在各种MQ内切换。
 ```
 
-### 24.1、 Spring Cloud Stream是什么
+## 25.1、 Spring Cloud Stream是什么
 
 ``` 
  官方定义Spring Cloud Stream 是一个构建消息驱动微服务的框架。
@@ -2217,7 +2217,7 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
 通俗的说：屏蔽底层消息中间件的差异，降低切换成本，统一消息的编程模型。
 ```
 
-### 24.2、 设计思想
+## 25.2、 设计思想
 
 ``` 
  在没有引入之前有什么问题，和引入之后有什么问题，对其原有的有没有造成影响。
@@ -2243,7 +2243,7 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
   
 ```
 
-### 24.3、 Binder 
+## 25.3、 Binder 
 
 ``` 
  INPUT对应于消费者
@@ -2251,7 +2251,7 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
 ```
  stream中的消息通信方式遵循了发布-订阅模式
 
-### 24.4、Spring Cloud Stream标准流程套路
+## 25.4、Spring Cloud Stream标准流程套路
 
     1、Binder 很方便的连接中间件，屏蔽差异
     2、Channel  通道，是队列Queue的一种抽象，在消息通讯系统中就是实现存储和转发的媒介，通过Channel对队列进行配置。
@@ -2260,7 +2260,7 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
 
 ![img](image/spring-cloud-stream.png) 
 
-### 24.5、新建3个子模块来进行测试
+## 25.5、新建3个子模块来进行测试
 
 ​    
 
@@ -2268,7 +2268,7 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
     cloud-stream-rabbitmq-consumer8802,作为消息接收模块
     cloud-stream-rabbitmq-consumer8803, 作为消息接收模块
 
-### 24.6、消息驱动之生产者
+## 25.6、消息驱动之生产者
 
  cloud-stream-rabbitmq-provider8801。
 
@@ -2321,7 +2321,7 @@ http://localhost:8801/sendMessage 可以看到rabbitMQ中已经创建了一个st
 在RabbitMQ中也可以看到消息已经进入了RabbitMQ中
 ![img](image/spring-cloud-stream-rabbitmq-message.png) 
 
-### 24.7、消息驱动消费者
+## 25.7、消息驱动消费者
 
 创建模块cloud-stream-rabbitmq-consumer8802模块，然后添加依赖，修改application.yml
 中的配置，消费端需要接收 所以这边对应是input。这里将output改为input。
@@ -2395,7 +2395,7 @@ public class ReceiveMessageListenerController {
 在消费者端可以看到8802接收到了消息
 ![img](image/receive-message-8802.png) 
 
-### 24.8分组消费与持久化,消息存在重复消费问题。
+## 25.8分组消费与持久化,消息存在重复消费问题。
 
 ``` 
  比如在如下场景中，订单系统我们做集群部署，都会从RabbitMQ中获取订单信息，那如果一个订单同时被两个服务获取到，
@@ -2405,7 +2405,7 @@ public class ReceiveMessageListenerController {
 不同组是可以前面消费的(重复消费)？。
 ```
 
-### 24.9 stream中使用group解决重复消费
+## 25.9 stream中使用group解决重复消费
 
 ```
 故障现象：重复消费
@@ -2421,17 +2421,21 @@ public class ReceiveMessageListenerController {
 和8803 各自接收到了3条消息。这样就不会造成每个接收者都接收了全部消息，而使消息重复消费问题。
 ![img](image/receive-message-8803-2.png) 
 
-### 24.10 stream之消息持久化
+## 25.10 stream之消息持久化
 
 ``` 
 如果将8802中的分组去掉，保留8803中group配置，那么再次使用8801发送消息时，8802重启之后是不能获取
 8801已经发送了的消息的。这样就就造成了消息的丢失。但是如果重启8803 这个却可以接收到8801已经发送到
 MQ中的消息。这样也不会使消息丢失的问题出现。
 ```
+## 25.11 注意:
+ 如出在启动项目时如果不能找到注册中心 server ，那么需要在hosts文件中进行配置
 
-## 25、Sleuth 分布式链路追踪
+![img](image/server-register-01.png)
 
-###   1、为什么会出现这种技术
+# 26、Sleuth 分布式链路追踪
+
+##   1、为什么会出现这种技术
 
      在微服务框架中，一个客户端发起的请求在后端系统中会经过多个不同的服务节点调用来协同产生最后的请求结果，
      每一个前端请求都会形成一条复杂的分布式服务调用链路，链路中的任何一环出现高延迟或错误都会引起整个请求
@@ -2453,7 +2457,7 @@ Trace:类似于树结构的Span集合，表示一条调用链路，存在唯一�
 span:标识调用链路来源，通俗的理解span就是一次请求信息
 ```
 
-### 25.1、测试请求链路
+## 26.1、测试请求链路
 
 在cloud-provider-payment8001中添加sleuth依赖,然后在application.yml中设置zipkin监控地址，
 在controller中添加方法，来测试请求链路
@@ -2487,7 +2491,7 @@ span:标识调用链路来源，通俗的理解span就是一次请求信息
 进入zipkin中可以看到80调用8001的全部链路了。
 ![img](image/consumer80-transfer-provider8001-zipkin.png)
 
-## 26、Spring Cloud Alibaba 入门
+# 27、Spring Cloud Alibaba 入门
 
 ``` 
 Spring Cloud Alibaba 致力于提供微服务开发的一站式解决方案。此项目包含开发分布式应用服务的必需组件，
@@ -2499,7 +2503,7 @@ Spring Cloud Alibaba 致力于提供微服务开发的一站式解决方案。�
 
 ```
 
-### 26.1、Spring Cloud Alibaba 能做什么
+## 27.1、Spring Cloud Alibaba 能做什么
 
 ``` 
 服务限流降级：默认支持Servlet、Feign、RestTemplate、Dubbo和RocketMQ限流降级功能的接入，可以在运行时通过
@@ -2513,12 +2517,12 @@ Spring Cloud Alibaba 致力于提供微服务开发的一站式解决方案。�
 如网格任务。网格任务支持海量子任务均匀分配到所有Worker（schedulerx-client）上执行。
 ```
 
-### 26.2、 Nacos 服务注册和配置中心
+## 27.2、 Nacos 服务注册和配置中心
 
 ``` 
 为什么叫nacos:前四个字母分别是Naming和Configuration的前两个字母，最后的s为Service。
 ```
-### 26.3、 Nacos 是什么
+## 27.3、 Nacos 是什么
 
 ``` 
 一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
@@ -2529,7 +2533,7 @@ Nacos就是注册中心+配置中心的组合
 访问localhost:8848/nacos，就可以看到界面了，默认密码是nacos
 ![img](image/nacos-start-1.png)
 
-### 26.3、创建新的模块进行测试
+## 27.4、创建新的模块进行测试
 
 创建新的模块，使用Spring Cloud Alibaba。模块为cloudalibaba-provider-payment9001。
 创建之后引入spring cloud alibaba 依赖，然后修改配置文件，创建启动类PaymentMain9001 这里就不需要
@@ -2566,12 +2570,12 @@ public class PaymentController {
 启动主启动类，进入nacos中可以看到这个微服务已经注册到nacos中去了。
 ![img](image/payment-nacos-9001.png)
 
-### 26.4 创建新的模块，模块为cloudalibaba-provider-payment9002。
+## 27.4 创建新的模块，模块为cloudalibaba-provider-payment9002。
 
 同样的加入依赖，只是修改一下配置文件中的端口号就可以了。启动主启动类后在nacos中就可以看到 同一个微服务名中 有两个实例。
 ![img](image/provider-nacos-2.png)
 
-### 26.5 创建服务消费者cloudalibaba-consumer-nacos-order83，修改pom文件和yml配置文件。
+## 27.5 创建服务消费者cloudalibaba-consumer-nacos-order83，修改pom文件和yml配置文件。
 
 然后创建主启动类和controller类来调用服务提供的接口。 注意这里没有向以前那样声明一个变量来指定服务提供者，而在在配置中配置了
 服务提供者的名字，这样方便修改。 下面的图可以看到服务消费者已经注册到了nacos中去了
@@ -2583,7 +2587,7 @@ nacos因为集成了ribbon所以它能支持负载均衡。测试http://localhos
 nacos和其它注册中心比较
 ![img](image/nacos-compare-other.png)
 
-### 26.6 nacos支持AP和CP模式的切换
+## 27.6 nacos支持AP和CP模式的切换
 
 ``` 
 C是所有节点在同一时间看到的数据是一致的；而A的定义是所有的请求都会收到响应。
@@ -2600,7 +2604,7 @@ CP模式下则支持注册持久化实例，此时则是以Raft协议为集群�
   curl -X PUT '$NACOS_SERVER:8848/nacos/v1/ns/operator/switches?entry=serverModer&value=CP'
 ```
 
-## 27、 nacos作为服务配置中心
+# 28、 nacos作为服务配置中心
 
 创建模块cloudalibaba-config-nacos-client3377，这里有两个配置一个
 bootstrap.yml 一个是application.yml 文件。nacos和SpringCloud-config一样，在项目初始时，要保证先从
@@ -2650,7 +2654,7 @@ public class ConfigClientController {
 如果修改了配置中心的文件，那么也能立即刷新
 ![img](image/nacos-config-info-2.png)
 
-### 27.1、nacos多环境项目管理，使用Namespace, Group ，DataID这三个来区分。
+## 28.1、nacos多环境项目管理，使用Namespace, Group ，DataID这三个来区分。
 
 ![img](image/nacos-namespace-group-service.png) 
     
@@ -2670,7 +2674,7 @@ public class ConfigClientController {
 
 ​    
 
-### 27.2、Nacos之DataID配置
+## 28.2、Nacos之DataID配置
 
 ``` 
  指定spring.profile.active和配置文件的DataID来使不同环境下读取不同的配置
@@ -2683,7 +2687,7 @@ public class ConfigClientController {
 重启3377，然后访问http://localhost:3377/config/info 就可以看到这个已经切换到了test环境了。
 ![img](image/nacos-config-test-02.png) 
 
-### 27.3、Nacos之Group分组配置。
+## 28.3、Nacos之Group分组配置。
 
 在nacos中创建配置，然后使用相同的Data ID, 但是分组却不一样
 ![img](image/nacos-config-group-01.png) 
@@ -2691,16 +2695,16 @@ public class ConfigClientController {
 http://localhost:3377/config/info 访问测试
 ![img](image/nacos-config-group-02.png) 
 
-### 27.4、namespace 命名空间。
+## 28.4、namespace 命名空间。
 
 默认的命名空间是public。这里创建dev和test两个命名空间
 ![img](image/nacos-namespace-01.png) 
 然后在bootstrap中添加namespace，指定刚刚创建的环境。在dev命名空间下分不同的组创建配置。
 ![img](image/nacos-namespace-dev-group-01.png) 
 重启测试，http://localhost:3377/config/info 可以看到访问的是dev命名空间下的DEV_GROUP配置信息。
-nacos-namespace-dev-001.png
+![img](image/nacos-namespace-dev-001.png)
 
-### 27.5、nacos集群和持久化配置
+## 28.5、nacos集群和持久化配置
 
 ``` 
 默认Nacos使用嵌入式数据库实现数据的存储。所以，如果启动多个默认配置的Nacos节点，数据存储是存在一致性问题的。
@@ -2711,7 +2715,7 @@ Nacos支持是三种部署模式
  2、集群模式-用于生产环境，确保高可用。
  3、多集群模式-用于多数据中心场景
 ```
-### 27.6 nacos默认的嵌入式数据库derby,切换到mysql。
+## 28.6 nacos默认的嵌入式数据库derby,切换到mysql。
 
 先在window中测试。在下载nacos的文件中将config中的
 nacos-mysql.sql放到数据库中执行。然后修改application.properties配置文件，加入下面的配置进行切换。
@@ -2729,7 +2733,7 @@ db.password=123
 在数据库可以看到新建立的配置信息了。
 ![img](image/nacos-config-mysql-info-1.png) 
 
-### 27.7、在linux上配置nacos集群。
+## 28.7、在linux上配置nacos集群。
 
 复制一份cluster示例文件，然后修改ip
 ![img](image/nacos-cluster-01.png) 
@@ -2842,19 +2846,19 @@ success
 success
 ```
 
-## 28、Spring Cloud Alibaba Sentinel 熔断限流
+# 29、Spring Cloud Alibaba Sentinel 熔断限流
 
  1.是什么？
 
     是面向云原生微服务的高可用流控防护组件。可以保护你的微服务。随着微服务的流行，服务和服务之间的稳定性变得越来越重要。
     Sentinel 以流量为切入点，从流量控制、熔断降级、系统负载保护等多个维度保护服务的稳定性。
 
-### 28.1、Sentinel 下载安装。
+## 29.1、Sentinel 下载安装。
 
 在github下载之后是一个jar文件，直接java -jar 启动就可以了。
 ![img](image/sentinel-start-01.png) 
 
-### 28.2、测试熔断、限流等
+## 29.2、测试熔断、限流等
 
 新建模块cloudalibaba-sentinel-service8401。然后和nacos8848配合测试熔断、限流等
 在pom文件中加入sentinel的相关依赖,以及nacos的依赖。 修改yml配置文件
@@ -2934,7 +2938,7 @@ public class FlowLimitController {
 再次进入sentinel刷新就可以看到这个sentinel微服务cloud-alibaba-sentinel-service。
 ![img](image/cloud-alibaba-sentinel-02.png) 
 
-### 28.3、流控模式，在簇点链路中配置，QPS(每秒请求数)
+## 29.3、流控模式，在簇点链路中配置，QPS(每秒请求数)
 
 ![img](image/cloud-alibaba-sentinel-03.png) 
 测试添加配置的是1s阈值时1，新增后进入流控规则列表,如果1s之内超过了阈值就快速失败。
@@ -2942,7 +2946,7 @@ public class FlowLimitController {
 然后测试 http://localhost:8401/testA 接口,一直刷新就会被限流。这种是快速失败（默认错误）
 ![img](image/cloud-alibaba-sentinel-flow-limiting-01.png) 
 
-### 28.4、流控模式，线程数
+## 29.4、流控模式，线程数
 
 测试线程数，修改testA方法，让其sleep 1000毫秒，然后浏览器中开两个页面访问testA接口，然后可以看到也被限流了
 ![img](image/cloud-alibaba-sentinel-thread-01.png) 
@@ -2953,7 +2957,7 @@ QPS：比如银行办理业务，这个QPS是将人员挡在门外。
 线程数：表示人员已经进入银行里面，但是现在只有一个柜台办理人员能处理业务。所以其它的都被限流了。
 ```
 
-### 28.4、流控模式，关联
+## 29.4、流控模式，关联
 
 ``` 
 当关联的资源达到阈值时，就限流自己
@@ -2971,7 +2975,7 @@ com.alibaba.csp.sentinel.slots.block.flow.controller.DefaultController
 
 ```
 
-### 28.4、流控模式，预热
+## 29.4、流控模式，预热
 
 ``` 
 默认coldFactor(冷加载因子)为3，即请求QPS从threadhold/3开始,经过预热时长逐渐升至设定的QPS阈值。
@@ -2987,7 +2991,7 @@ com.alibaba.csp.sentinel.slots.block.flow.controller.WarmUpController 源码
 访问 http://localhost:8401/testB ，在开始的5秒内会出现Blocked by Sentinel(flow limiting)。之后
 限流慢慢升高恢复到原来设置的。
 
-### 28.5、流控模式，排队等待
+### 29.5、流控模式，排队等待
 
 ```
  匀速排队(RuleConstans.CONTROL_BEHAVIOR_RATE_LIMITER)方式会严格控制请求的通过间隔时间，也即是
@@ -3002,7 +3006,7 @@ com.alibaba.csp.sentinel.slots.block.flow.controller.RateLimiterController
 设置含义：/testA每秒1次请求，超过的话就排队等待，等待的超时时间为20000毫秒。
 ```
 
-### 28.6 sentinel 服务降级
+## 29.6 sentinel 服务降级
 
     Sentinel 提供以下几种熔断策略：
     1、慢调用比例 (SLOW_REQUEST_RATIO)：选择以慢调用比例作为阈值，需要设置允许的慢调用 RT（即最大的响应时间），请求的响应时间大于该值则统计为慢调用。当单位统计时长（statIntervalMs）内请求数目大于设置的最小请求数目，并且慢调用的比例大于阈值，则接下来的熔断时长内请求会自动被熔断。经过熔断时长后熔断器会进入探测恢复状态（HALF-OPEN 状态），若接下来的一个请求响应时间小于设置的慢调用 RT 则结束熔断，若大于设置的慢调用 RT 则会再次被熔断。
@@ -3059,7 +3063,7 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时(�
 如果超过200毫秒还没有处理完，在未来1秒钟的时间窗口内，断路器打开(保险丝跳闸)微服务不可用，保险丝跳闸
 断电了。 当后面停止jmeter测试，没有大量的访问后，断路器(保险丝恢复)，微服务恢复ok。
 
-### 28.7 sentinel 服务降级-异常比例
+## 29.7 sentinel 服务降级-异常比例
 
 ``` 
 异常比例: 当资源的每秒请求量 >=5 ,并且每秒异常总数占通过量的比值超过阈值之后，资源进入降级状态，即在接下来
@@ -3081,7 +3085,7 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时(�
 当停止jmeter时。再次 http://localhost:8401/testException，会看到报错异常错误，虽然没有进入服务降级
 但是这个出现了异常错误，是因为代码的问题 而不是服务降级了。 
 
-### 28.8 sentinel 服务降级-异常数
+## 29.8 sentinel 服务降级-异常数
 
 ``` 
 当资源近1分钟的异常数目超过阈值之后会进行熔断。注意时间窗口是分钟级别的。若timewindow小于60s，则结束
@@ -3107,7 +3111,7 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时(�
 但是达到5次报错后，进入熔断降级。
 ```
 
-### 28.9 、sentinel 热点key。
+## 29.9 、sentinel 热点key。
 
 ``` 
 何为热点？
@@ -3153,7 +3157,7 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时(�
 根据规则设置，方法testHotKey里面第一个参数只要QPS超过每秒1次，马上降级处理
 ```
 
-###  28.10、 sentinel 热点key参数例外项。 
+##  29.10、 sentinel 热点key参数例外项。 
 
 ``` 
 在上述测试中演示了第一给参数p1,当QPS超过1秒1次点击后马上被限流。 
@@ -3300,7 +3304,7 @@ public class CustomerBlockHandler {
 再次请求http://localhost:8401/rateLimit/customerBlockHandler，然后快速点击就可以看到这个被限流了
 ![img](image/sentinel-customer-block-handler-flow-limiting-01.png)
 
-## 29、sentinel 服务熔断功能。sentinel整合ribbon + openFeign + fallback
+# 29、sentinel 服务熔断功能。sentinel整合ribbon + openFeign + fallback
 
 创建两个模块9003、9004 添加pom依赖，和修改application.yml文件等。添加主启动类 和 controller类。
 启动测试http://localhost:9003/paymentSQL/1 ，http://localhost:9004/paymentSQL/1 都能正常访问
@@ -3316,7 +3320,7 @@ public class CustomerBlockHandler {
 在cloudalibaba-consumer-nacos-order84 ，CircleBreakerController类中如果什么配置都没有配，既没有熔断，也没有降级。
 那么在访问的时候给客户error页面，不友好。
 
-### 29.1 在CircleBreakerController类中的方法fallback，上配置下面的配置需要一个兜底的方法。
+## 29.1 在CircleBreakerController类中的方法fallback，上配置下面的配置需要一个兜底的方法。
 
 ```
      @RequestMapping("/consumer/fallback/{id}")
@@ -3341,7 +3345,7 @@ public class CustomerBlockHandler {
 如果输入的id=5，那么http://localhost:84/consumer/fallback/5 返回得也是一个友好的提示，只是这个是空指针异常。
 ![img](image/sentinel-customer-fallback-nullpointerexception-order84-01.png)
 
-### 29.3 在CircleBreakerController类中只配置blockHandler。
+## 29.3 在CircleBreakerController类中只配置blockHandler。
 
 ``` 
   @RequestMapping("/consumer/fallback/{id}")
@@ -3367,7 +3371,7 @@ public class CustomerBlockHandler {
 才会进入服务降级
 ![img](image/sentinel-customer-block-handler-02.png)
 
-### 29.3 在CircleBreakerController类中blockHandler和fallback都配置。
+## 29.3 在CircleBreakerController类中blockHandler和fallback都配置。
 
 ``` 
    @RequestMapping("/consumer/fallback/{id}")
@@ -3408,7 +3412,7 @@ public class CustomerBlockHandler {
 如果blockHandler和fallback都进行了配置，则被限流降级而抛出BlockException时只会进入blockHandler处理逻辑。
 ```
 
-### 29.4 在CircleBreakerController类中异常忽略，
+## 29.4 在CircleBreakerController类中异常忽略，
 
 exceptionsToIgnore = {IllegalArgumentException.class}假如报该异常，不再有fallback方法兜底，没有降级效果了。
 
@@ -3428,7 +3432,7 @@ exceptionsToIgnore = {IllegalArgumentException.class}假如报该异常，不再
 ```
 那么在请求的时候，又会出现error page 页面了。
 
-### 29.5 sentinel 服务熔断OpenFeign。
+## 29.5 sentinel 服务熔断OpenFeign。
 
 修改84，在pom中加入OpenFeign依赖和yml中添加Sentinel对feign的支持。
 在主启动类添加@EnableFeignClients注解来对激活Feign。 并且在PaymentService接口中添加@FeignClient注解，
@@ -3536,7 +3540,7 @@ public class CircleBreakerController {
 再次请求http://localhost:84/consumer/paymentSQL/2 ,可以发现服务被降级了，完成一种自我的保护。
 ![img](image/sentinel-customer-payment-feign-order84-02.png)
 
-### 29.6 sentinel持久化规则。
+## 29.6 sentinel持久化规则。
 
 ``` 
 在sentinel中配置规则后，如果重启sentinel那么规则就会消失，所以生产环境需要
@@ -3588,7 +3592,7 @@ public class CircleBreakerController {
 者说明了sentinel中的规则已经持久化了。
 ![img](image/sentinel-data-source-nacos-payment8401-03.png)
 
-## 30、分布式事务问题由来
+# 30、分布式事务问题由来
 
 ``` 
  比如在微服务系统中： 订单模块、库存模块、支付等模块这三个如果每个模块的数据库都是单独，在不同的机房。
@@ -3608,7 +3612,7 @@ public class CircleBreakerController {
 所以在一次业务操作需要跨多个数据源或者跨多个系统进行远程调用时，就会产生分布式事务问题。
 ![img](image/seata-business-01.png)
 
-### 30.1 seata 是什么？能干什么？解决了什么问题？
+## 30.1 seata 是什么？能干什么？解决了什么问题？
 
 ``` 
 seata 是什么：
@@ -3630,13 +3634,13 @@ seata 是什么：
 下面是请求流程图。
 ![img](image/seata-transaction-01.png)
 
-### 30.2、下载seata
+## 30.2、下载seata
 
 然后修改file.conf和registry.conf文件，将其存储地址改为mysql，并且注册到nacos中去。
 先启动nacos再启动seata，然后到nacos中可以看到已经seata服务已经注册到nacos中了。
 ![img](image/seata-registry-nacos-01.png)
 
-### 30.3、订单/库存/账户业务数据库准备
+## 30.3、订单/库存/账户业务数据库准备
 
 分布式事务业务说明:
 
@@ -3662,7 +3666,7 @@ CREATE DATABASE seata_account;
 再对应的数据库中创建表：t_account，t_order, t_storage, 然后每个数据库建立undo_log回滚日志记录表
 ```
 
-### 30.4、订单/库存/账户业务微服务准备
+## 30.4、订单/库存/账户业务微服务准备
 
 ``` 
 1、新建订单Order-Module, seata-oerder-service2001
@@ -4030,7 +4034,7 @@ mybatis:
 
 
 
-### 30.5、模拟超时异常情况下不加@GlobalTransctional 事务注解
+## 30.5、模拟超时异常情况下不加@GlobalTransctional 事务注解
 
 事务处理的情况, 在Account模块下模拟超时情况。
 
@@ -4094,7 +4098,7 @@ public class AccountServiceImpl implements AccountService {
 ```
 所以在这种请求要了解请求服务之间的调用，那么查找问题起来才快速，更容易快速解决。
 
-### 30.6、超时异常，在order模块中serviceimpl的方法加上@GlobalTransctional注解。
+## 30.6、超时异常，在order模块中serviceimpl的方法加上@GlobalTransctional注解。
 
 ```java
 package com.learn.springcloud.service.impl;
@@ -4175,7 +4179,7 @@ public class OrderServiceImpl implements OrderService {
 
 
 
-### 总结：seata
+## 总结：seata
 
     1、TC:事务的全局协调者(Seata服务器)
     2、TM:事务的发起方，也就在方法上添加了 @GlobalTransactional注解的方法
@@ -4669,6 +4673,7 @@ ID号生成系统的可用性要求：
 
  
 
+
  添加测试雪花算法的类，这是开源的
 ```java
 /**
@@ -4872,5 +4877,4 @@ public class SnowFlakeIdWorker {
      
      解决这个时钟问题又： 百度开源的分布式唯一ID生成器UidGenerator
                         leaf---美团点评分布式ID生成系统。 
-
 
