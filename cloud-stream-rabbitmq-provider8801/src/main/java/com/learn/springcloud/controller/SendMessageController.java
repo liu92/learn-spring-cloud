@@ -1,10 +1,14 @@
 package com.learn.springcloud.controller;
 
 import com.learn.springcloud.service.IMessageProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.Date;
 
 /**
  * @ClassName: SendMessageController
@@ -17,6 +21,9 @@ import javax.annotation.Resource;
 @RestController
 public class SendMessageController {
 
+    /** logger */
+    private static final Logger logger = LoggerFactory.getLogger(SendMessageController.class);
+
     @Resource
     private IMessageProvider messageProvider;
 
@@ -24,6 +31,7 @@ public class SendMessageController {
     public String sendMessage() {
         return messageProvider.send();
     }
+
 
 
 }
